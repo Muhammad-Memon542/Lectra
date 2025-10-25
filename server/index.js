@@ -6,14 +6,14 @@ import path from 'path'
 import os from 'os'
 
 const app = express()
-const upload = multer({ dest: path.join(os.tmpdir(), 'lectra-chunks') })
+const upload = multer({ dest: path.join(os.tmpdir(), 'lectra-frames') })
 
-// Store per-session chunks in tmp
-app.post('/api/ingest/chunk', upload.single('chunk'), (req, res) => {
+// Store per-session frames in tmp
+app.post('/api/ingest/frame', upload.single('frame'), (req, res) => {
   const sessionId = req.body.sessionId || 'no-session'
   const dir = path.join(os.tmpdir(), 'lectra-sessions', sessionId)
   fs.mkdirSync(dir, { recursive: true })
-  const dest = path.join(dir, req.file.originalname || `chunk-${Date.now()}.webm`)
+  const dest = path.join(dir, req.file.originalname || `frame-${Date.now()}.webm`)
   fs.renameSync(req.file.path, dest)
   res.json({ ok: true })
 })
@@ -27,7 +27,7 @@ app.post('/api/ingest/finalize', express.json(), (req, res) => {
   res.json({ ok: true, receivedChunks: files.length, sessionId })
 })
 
-const PORT = process.env.PORT || 8787
+const PORT = 8787
 app.listen(PORT, () => {
   console.log(`[lectra-api] listening on http://localhost:${PORT}`)
 })
