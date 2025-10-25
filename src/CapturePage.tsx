@@ -1,23 +1,22 @@
 import React, { useEffect, useRef, useState } from "react";
+// 🔧 Adjust this import path to your Firebase init (compat SDK or default export)
+// For compat (v8 style):
+//   import firebase from "../db";
+// For modular (v9) replace the helper `uploadArchiveToFirebase` with modular calls (see comment there).
+// @ts-ignore
+import { storage } from "./firebase";
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 /**
- * Lectra – Local-only recorder + periodic snapshots (NO uploads)
- * ----------------------------------------------------------------
- * What changed vs your last version:
- *  - Removed ALL network uploads (/api/ingest/*) and Gradient calls.
- *  - Does NOT bundle & auto-download at the end.
- *  - Uses the File System Access API to save each snapshot immediately
- *    to a user-picked directory, inside a folder named `my_picsssss/session-<id>`.
- *  - Keeps mic level meter and in-browser Web Speech API transcript.
- *  - Still requests mic/cam ONLY on user gesture and handles insecure contexts.
- *
- * Notes:
- *  - Chrome/Edge (desktop) support showDirectoryPicker(). Firefox/Safari do not (yet).
- *  - The browser cannot write to your project "source code" folder automatically.
- *    You will be prompted once to choose a folder on disk where we create `my_picsssss/`.
+ * Lectra – Audio preview + periodic snapshots → ZIP-like TAR.GZ → Upload to Firebase Storage
+ * -------------------------------------------------------------------------------------------
+ * • No servers, no directory pickers.
+ * • Buffers snapshots in memory during recording.
+ * • On stop: builds a .tar.gz archive and uploads to Firebase Storage at:
+ *      sessions/<sessionId>/session-<sessionId>.tar.gz
+ * • Keeps mic level meter and Web Speech API transcript (optional payload to upload later).
  */
 
-// Type guards for vendor-prefixed SpeechRecognition
 declare global {
   interface Window {
     webkitSpeechRecognition?: any;
@@ -28,37 +27,22 @@ declare global {
   }
 }
 
-// (Ambient) prevent TS errors if no @types/node
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const process: any;
 
-type EnvLike = { win?: any; doc?: Document | null; proc?: any };
+type TranscriptPiece = { text: string; startMs: number; endMs: number; final: boolean };
 
-type TranscriptPiece = {
-  text: string;
-  startMs: number; // relative to sessionStartMs
-  endMs: number;   // updated when final
-  final: boolean;
-};
-
-type MediaErrorKind =
-  | "denied"
-  | "insecure"
-  | "notfound"
-  | "overconstrained"
-  | "abort"
-  | "other";
-
-function prettyBytes(n: number) {
-  if (n < 1024) return `${n} B`;
-  const u = ["KB", "MB", "GB"]; let i = -1; do { n /= 1024; i++; } while (n >= 1024 && i < u.length - 1);
-  return `${n.toFixed(1)} ${u[i]}`;
-}
+type MediaErrorKind = "denied" | "insecure" | "notfound" | "overconstrained" | "abort" | "other";
 
 function genSessionId() {
-  return (crypto?.randomUUID?.() || "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
-    const r = (Math.random() * 16) | 0, v = c === "x" ? r : (r & 0x3) | 0x8; return v.toString(16);
-  })).toString();
+  return (
+    crypto?.randomUUID?.() ||
+    "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    })
+  ).toString();
 }
 
 function isLikelyInsecureContext(win: any): boolean {
@@ -67,7 +51,9 @@ function isLikelyInsecureContext(win: any): boolean {
     const secure = win?.isSecureContext === true;
     const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(hostname);
     return !(secure || isLocal);
-  } catch { return true; }
+  } catch {
+    return true;
+  }
 }
 
 function categorizeMediaError(e: any, win: any): MediaErrorKind {
@@ -84,7 +70,6 @@ function categorizeMediaError(e: any, win: any): MediaErrorKind {
 }
 
 export default function CapturePage() {
-  // Theme tokens for preview
   const theme = {
     bg: "#0B0E2C",
     fg: "#F4F7FF",
@@ -98,27 +83,25 @@ export default function CapturePage() {
     charcoal: "#111418",
   } as const;
 
-  const [sessionId, setSessionId] = useState<string>(() => genSessionId());
+  const [sessionId, setSessionId] = useState(genSessionId());
   const [ready, setReady] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [status, setStatus] = useState<string>("Idle");
-  const [framesSaved, setFramesSaved] = useState(0);
+  const [status, setStatus] = useState("Idle");
+  const [framesBuffered, setFramesBuffered] = useState(0);
+  const [durationSec, setDurationSec] = useState(120);
+  const [frameIntervalSec, setFrameIntervalSec] = useState(5);
+  const [remaining, setRemaining] = useState(durationSec);
   const [error, setError] = useState<string | null>(null);
-  const [durationSec, setDurationSec] = useState<number>(120); // default 2 min
-  const [frameIntervalSec, setFrameIntervalSec] = useState<number>(5); // default 5s
-  const [remaining, setRemaining] = useState<number>(durationSec);
 
-  // Web Speech API support
-  const [speechSupported, setSpeechSupported] = useState<boolean>(false);
+  // Speech API
+  const [speechSupported, setSpeechSupported] = useState(false);
   const [transcriptPieces, setTranscriptPieces] = useState<TranscriptPiece[]>([]);
-  const [transcriptText, setTranscriptText] = useState<string>("");
+  const [transcriptText, setTranscriptText] = useState("");
 
-  // Media refs
-  const mediaRef = useRef<MediaStream | null>(null);          // full A+V for preview/snapshots
+  // Media and UI refs
+  const mediaRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  // meters / speech
   const analyzerRef = useRef<AnalyserNode | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -134,24 +117,21 @@ export default function CapturePage() {
   // indices
   const frameIndexRef = useRef<number>(0);
 
-  // Local directory handle for saving files (File System Access API)
-  const dirHandleRef = useRef<any | null>(null); // FileSystemDirectoryHandle
-  const sessDirHandleRef = useRef<any | null>(null); // FileSystemDirectoryHandle for this session
+  // local buffered frames for the archive
+  const framesLocalRef = useRef<Array<{ name: string; blob: Blob }>>([]);
 
   useEffect(() => {
     const SR = (window.SpeechRecognition || window.webkitSpeechRecognition);
     setSpeechSupported(!!SR);
-
     if (isLikelyInsecureContext(window)) {
       setError("This page is not in a secure context. Use HTTPS or localhost before enabling mic/camera.");
       setStatus("Needs HTTPS/localhost");
     }
-
     return () => cleanupAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function cleanupAll(){
+  function cleanupAll() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (frameTimerRef.current) clearInterval(frameTimerRef.current);
     if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
@@ -159,7 +139,7 @@ export default function CapturePage() {
     try { recognitionRef.current?.stop?.(); } catch {}
     analyzerRef.current?.disconnect();
     audioCtxRef.current?.close();
-    mediaRef.current?.getTracks().forEach(t => t.stop());
+    mediaRef.current?.getTracks().forEach((t) => t.stop());
   }
 
   function tickLevel() {
@@ -173,65 +153,26 @@ export default function CapturePage() {
     rafRef.current = requestAnimationFrame(tickLevel);
   }
 
-  async function pickDirectoryIfNeeded(): Promise<void> {
-    if (sessDirHandleRef.current) return;
-
-    if (!('showDirectoryPicker' in window)) {
-      setError("Your browser doesn't support saving directly to a folder. Use Chrome/Edge desktop.");
-      throw new Error("no-fsa");
-    }
-
-    // Ask user to pick a parent directory once
-    if (!dirHandleRef.current) {
-      // @ts-ignore
-      dirHandleRef.current = await (window as any).showDirectoryPicker({ id: 'lectra-save-root' });
-    }
-    // Create/ensure my_picsssss/session-<id>
-    const root = dirHandleRef.current;
-    const pics = await root.getDirectoryHandle('my_picsssss', { create: true });
-    const sess = await pics.getDirectoryHandle(`session-${sessionId}`, { create: true });
-    sessDirHandleRef.current = sess;
-  }
-
-  async function saveBlobToSessionDir(filename: string, blob: Blob): Promise<void> {
-    await pickDirectoryIfNeeded();
-    const sess = sessDirHandleRef.current;
-    const fileHandle = await sess.getFileHandle(filename, { create: true });
-    const writable = await fileHandle.createWritable();
-    await writable.write(blob);
-    await writable.close();
-  }
-
   async function initMedia(): Promise<void> {
     setStatus("Requesting mic & camera permissions…");
     setError(null);
-
     if (isLikelyInsecureContext(window)) {
       setStatus("Needs HTTPS/localhost");
       throw new Error("insecure-context");
     }
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
       mediaRef.current = stream;
-
-      // Video preview
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play().catch(() => {});
       }
-
-      // Audio meter
       const AudioCtx: any = (window as any).AudioContext || (window as any).webkitAudioContext;
       const audioCtx = new AudioCtx();
       const source = audioCtx.createMediaStreamSource(stream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 512;
+      const analyser = audioCtx.createAnalyser(); analyser.fftSize = 512;
       source.connect(analyser);
-      audioCtxRef.current = audioCtx;
-      analyzerRef.current = analyser;
-      tickLevel();
-
+      audioCtxRef.current = audioCtx; analyzerRef.current = analyser; tickLevel();
       setReady(true);
       setStatus("Devices ready");
     } catch (e: any) {
@@ -253,17 +194,13 @@ export default function CapturePage() {
     const SR: any = (window.SpeechRecognition || window.webkitSpeechRecognition);
     if (!SR) { setStatus("Recording… — SpeechRecognition not supported"); return; }
     const rec = new SR();
-    rec.lang = 'en-US';
-    rec.continuous = true;
-    rec.interimResults = true;
-
+    rec.lang = 'en-US'; rec.continuous = true; rec.interimResults = true;
     rec.onstart = () => { sessionStartMsRef.current = performance.now(); };
     rec.onresult = (e: any) => {
       const pieces: TranscriptPiece[] = [];
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i];
-        const txt = res[0]?.transcript?.trim?.() || "";
-        if (!txt) continue;
+        const txt = res[0]?.transcript?.trim?.() || ""; if (!txt) continue;
         pieces.push({ text: txt, startMs: performance.now() - sessionStartMsRef.current, endMs: performance.now() - sessionStartMsRef.current, final: res.isFinal === true });
       }
       if (pieces.length) {
@@ -281,33 +218,22 @@ export default function CapturePage() {
     recognitionRef.current = rec;
   }
 
-  function stopSpeechRecognition() {
-    try { recognitionRef.current?.stop?.(); } catch {}
-    recognitionRef.current = null;
-  }
+  function stopSpeechRecognition() { try { recognitionRef.current?.stop?.(); } catch {} recognitionRef.current = null; }
 
   async function startRecording() {
     setError(null);
-    setFramesSaved(0);
-    frameIndexRef.current = 0;
+    setFramesBuffered(0);
+    framesLocalRef.current = []; frameIndexRef.current = 0;
 
-    // Ask for a save directory up-front so we can write snapshots directly
-    try { await pickDirectoryIfNeeded(); }
-    catch { /* error message already set */ return; }
+    if (!ready) { try { await initMedia(); } catch { return; } }
 
-    // Initialize media ONLY on user gesture here
-    if (!ready) {
-      try { await initMedia(); }
-      catch { return; }
-    }
-
-    // Start snapshot loop
+    // snapshot loop only
     startSnapshotLoop();
 
-    // Start Web Speech API transcription (if supported)
+    // speech transcript
     startSpeechRecognition();
 
-    // Start countdown + auto-stop
+    // countdown + auto-stop
     setRemaining(durationSec);
     if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
     countdownTimerRef.current = window.setInterval(() => {
@@ -322,15 +248,15 @@ export default function CapturePage() {
     stopTimerRef.current = window.setTimeout(() => { stopRecording(); }, durationSec * 1000);
 
     setRecording(true);
-    setStatus("Recording… (saving snapshots locally)");
+    setStatus("Recording… (buffering snapshots)");
   }
 
   function startSnapshotLoop(){
     if (frameTimerRef.current) clearInterval(frameTimerRef.current);
-    frameTimerRef.current = window.setInterval(captureAndSaveFrame, Math.max(1000, frameIntervalSec * 1000));
+    frameTimerRef.current = window.setInterval(captureFrameToMemory, Math.max(1000, frameIntervalSec * 1000));
   }
 
-  async function captureAndSaveFrame(){
+  async function captureFrameToMemory(){
     try {
       const video = videoRef.current; if (!video) return;
       const canvas = canvasRef.current || (canvasRef.current = document.createElement('canvas'));
@@ -341,52 +267,131 @@ export default function CapturePage() {
       const ts = Date.now();
       const idx = frameIndexRef.current++;
       const filename = `frame-${String(idx).padStart(5, '0')}-${ts}.png`;
-
-      canvas.toBlob(async (blob) => {
+      canvas.toBlob((blob) => {
         if (!blob) return;
-        try {
-          await saveBlobToSessionDir(filename, blob);
-          setFramesSaved(n => n + 1);
-        } catch (e) {
-          console.error('save frame failed', e);
-          setError('Failed to save a snapshot. Check folder permissions.');
-        }
+        framesLocalRef.current.push({ name: filename, blob });
+        setFramesBuffered(n => n + 1);
       }, 'image/png');
-    } catch (e) {
-      console.error('snapshot error', e);
-    }
+    } catch (e) { console.error('snapshot error', e); }
   }
 
   async function stopRecording() {
-    if (!recording) return; // already stopped
-
+    if (!recording) return;
     setStatus("Stopping…");
     if (frameTimerRef.current) { clearInterval(frameTimerRef.current); frameTimerRef.current = null; }
     if (stopTimerRef.current) { clearTimeout(stopTimerRef.current); stopTimerRef.current = null; }
     if (countdownTimerRef.current) { clearInterval(countdownTimerRef.current); countdownTimerRef.current = null; }
-
     stopSpeechRecognition();
-
     setRecording(false);
-    setStatus("Stopped ✅ (snapshots saved locally)");
+
+    try {
+      setStatus("Finalizing archive…");
+      const tarBlob = await buildTar(framesLocalRef.current);
+      setStatus("Uploading to Firebase Storage…");
+      const url = await uploadArchive(sessionId, tarBlob);
+      setStatus("Uploaded ✅");
+      console.info("Firebase download URL:", url);
+    } catch (e:any) {
+      console.error(e);
+      setError("Upload failed. Check Firebase config/permissions.");
+      setStatus("Upload error");
+    }
   }
 
   function resetSession() {
     if (recording) return;
     setSessionId(genSessionId());
     setStatus("New session ready");
-    setFramesSaved(0);
+    setFramesBuffered(0);
+    framesLocalRef.current = [];
     setTranscriptPieces([]); setTranscriptText("");
     setRemaining(durationSec);
-    sessDirHandleRef.current = null; // pick dir again for new session folder
   }
 
-  const box: React.CSSProperties = { border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.card } as const;
-  const btn = (disabled=false, grad?: string) => ({
-    padding: "12px 16px", borderRadius: 12, border: `1px solid ${theme.border}`,
-    fontWeight: 700, cursor: disabled? "not-allowed":"pointer", opacity: disabled? 0.6:1,
-    background: grad || theme.muted, color: grad? "#0b0e2c": theme.fg
-  }) as React.CSSProperties;
+  // ===== TAR builder (gzips when CompressionStream exists) =====
+  async function buildTar(files: Array<{ name: string; blob: Blob }>): Promise<Blob> {
+    const encoder = new TextEncoder();
+    const BLOCK = 512;
+    function octal(value: number, length: number) {
+      const s = value.toString(8);
+      const body = s.padStart(length - 1, '0');
+      return encoder.encode(body + '\0');
+    }
+    function put(view: Uint8Array, offset: number, data: Uint8Array) { view.set(data.subarray(0, data.length), offset); }
+    function headerFor(name: string, size: number, mtime: number): Uint8Array {
+      const buf = new Uint8Array(BLOCK);
+      put(buf, 0, encoder.encode(name).subarray(0, 100));
+      put(buf, 100, encoder.encode('0000777\0'));
+      put(buf, 108, encoder.encode('0000000\0'));
+      put(buf, 116, encoder.encode('0000000\0'));
+      put(buf, 124, octal(size, 12));
+      put(buf, 136, octal(Math.floor(mtime / 1000), 12));
+      for (let i = 148; i < 156; i++) buf[i] = 0x20;
+      buf[156] = '0'.charCodeAt(0);
+      put(buf, 257, encoder.encode('ustar\0'));
+      put(buf, 263, encoder.encode('00'));
+      put(buf, 265, encoder.encode('user'));
+      put(buf, 297, encoder.encode('group'));
+      let sum = 0; for (let i = 0; i < buf.length; i++) sum += buf[i];
+      const chk = encoder.encode(sum.toString(8).padStart(6, '0') + '\0 ');
+      put(buf, 148, chk);
+      return buf;
+    }
+    function padToBlock(n: number) { const rem = n % 512; return rem === 0 ? 0 : 512 - rem; }
+
+    const parts: Array<Uint8Array> = [];
+    for (const f of files) {
+      const ab = new Uint8Array(await f.blob.arrayBuffer());
+      const head = headerFor(f.name, ab.length, Date.now());
+      parts.push(head, ab);
+      const pad = padToBlock(ab.length);
+      if (pad) parts.push(new Uint8Array(pad));
+    }
+    parts.push(new Uint8Array(512), new Uint8Array(512));
+
+    const total = parts.reduce((a, b) => a + b.length, 0);
+    const out = new Uint8Array(total);
+    let off = 0; for (const p of parts) { out.set(p, off); off += p.length; }
+    const tarBlob = new Blob([out], { type: 'application/x-tar' });
+
+    if (typeof (window as any).CompressionStream === 'function') {
+      try {
+        const cs = new (window as any).CompressionStream('gzip');
+        const gzStream = (tarBlob as any).stream().pipeThrough(cs);
+        const gzResp = new Response(gzStream);
+        return await gzResp.blob();
+      } catch { return tarBlob; }
+    }
+    return tarBlob;
+  }
+
+  // // ===== Firebase upload (compat SDK). For v9 modular, see comment below. =====
+  // async function uploadArchiveToFirebase(tarBlob: Blob): Promise<string> {
+  //   // COMPAT (v8 / compat):
+  //   const storageRef = firebase.storage().ref();
+  //   const path = `sessions/${sessionId}/session-${sessionId}.tar.gz`;
+  //   const fileRef = storageRef.child(path);
+  //   const snapshot = await fileRef.put(tarBlob, { contentType: 'application/gzip' });
+  //   const url = await snapshot.ref.getDownloadURL();
+  //   return url;
+
+  //   // MODULAR (v9):
+  //   // import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+  //   // const storage = getStorage();
+  //   // const fileRef = ref(storage, `sessions/${sessionId}/session-${sessionId}.tar.gz`);
+  //   // const snap = await uploadBytes(fileRef, tarBlob, { contentType: 'application/gzip' });
+  //   // return await getDownloadURL(snap.ref);
+  // }
+  
+  async function uploadArchive(sessionId: string, tarGz: Blob) {
+    const path = `sessions/${sessionId}/session-${sessionId}.tar.gz`;
+    const fileRef = ref(storage, path);
+    const snap = await uploadBytes(fileRef, tarGz, { contentType: "application/gzip" });
+    return await getDownloadURL(snap.ref);
+  }
+
+  const box: React.CSSProperties = { border: `1px solid ${theme.border}`, borderRadius: 16, padding: 16, background: theme.card };
+  const btn = (disabled=false, grad?: string): React.CSSProperties => ({ padding: "12px 16px", borderRadius: 12, border: `1px solid ${theme.border}`, fontWeight: 700, cursor: disabled? "not-allowed":"pointer", opacity: disabled? 0.6:1, background: grad || theme.muted, color: grad? "#0b0e2c": theme.fg });
   const label = { fontSize: 12, color: theme.mutedText } as const;
 
   const insecure = isLikelyInsecureContext(window);
@@ -395,7 +400,7 @@ export default function CapturePage() {
     <div style={{minHeight:'100vh', background: theme.bg, color: theme.fg, padding: 24}}>
       <div style={{maxWidth: 980, margin: '0 auto'}}>
         <header style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap: 12, marginBottom: 16}}>
-          <h1 style={{margin:0, fontSize: 28, fontWeight: 800}}>Lectra · Local Snapshots (no uploads)</h1>
+          <h1 style={{margin:0, fontSize: 28, fontWeight: 800}}>Lectra · Snapshots → Firebase Upload</h1>
           <div style={{opacity:0.85, fontSize: 14}}>Session: <code style={{padding:'2px 6px', border:`1px solid ${theme.border}`, borderRadius:8, background: theme.muted}}>{sessionId}</code></div>
         </header>
 
@@ -408,7 +413,6 @@ export default function CapturePage() {
 
         <div style={{display:'grid', gridTemplateColumns:'1fr', gap:16, alignItems:'start'}}>
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16}}>
-            {/* Preview */}
             <section style={box}>
               <div style={label}>Camera Preview (used only for snapshots)</div>
               <div style={{marginTop:12, borderRadius:12, overflow:'hidden', background:'#000', aspectRatio:'16/9'}}>
@@ -422,21 +426,14 @@ export default function CapturePage() {
               </div>
             </section>
 
-            {/* Controls */}
             <section style={box}>
               <div style={label}>Controls</div>
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginTop:8}}>
                 {!ready && (
-                  <button
-                    style={btn(insecure, `linear-gradient(135deg, ${theme.bolt}, ${theme.lime})`)}
-                    onClick={initMedia} disabled={insecure}>🔒 Enable mic & camera</button>
+                  <button style={btn(insecure, `linear-gradient(135deg, ${theme.bolt}, ${theme.lime})`)} onClick={initMedia} disabled={insecure}>🔒 Enable mic & camera</button>
                 )}
-                <button
-                  style={btn(!ready || recording, `linear-gradient(135deg, ${theme.bolt}, ${theme.lime})`)}
-                  onClick={startRecording} disabled={!ready || recording}>⏺ Start</button>
-                <button
-                  style={btn(!recording, `linear-gradient(135deg, ${theme.blue}, ${theme.charcoal})`)}
-                  onClick={stopRecording} disabled={!recording}>⏹ Stop</button>
+                <button style={btn(!ready || recording, `linear-gradient(135deg, ${theme.bolt}, ${theme.lime})`)} onClick={startRecording} disabled={!ready || recording}>⏺ Start</button>
+                <button style={btn(!recording, `linear-gradient(135deg, ${theme.blue}, ${theme.charcoal})`)} onClick={stopRecording} disabled={!recording}>⏹ Stop</button>
               </div>
 
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginTop:12}}>
@@ -460,56 +457,30 @@ export default function CapturePage() {
 
               <div style={{marginTop:12, padding:12, border:`1px solid ${theme.border}`, borderRadius:12, background: theme.muted}}>
                 <div style={{fontSize:14}}>Status: <b>{status}</b></div>
-                <div style={{fontSize:14, marginTop:4}}>Snapshots saved: <code>{framesSaved}</code></div>
+                <div style={{fontSize:14, marginTop:4}}>Snapshots buffered: <code>{framesBuffered}</code></div>
                 {recording && <div style={{fontSize:14, marginTop:4}}>Time left: <code>{remaining}s</code></div>}
                 {error && <div style={{marginTop:8, color:'#ffb1b1', fontSize:13}}>{error}</div>}
-                {!speechSupported && <div style={{marginTop:8, color:'#ffdc7b', fontSize:13}}>⚠️ Browser SpeechRecognition not supported. Transcript will be empty.</div>}
+                {!speechSupported && <div style={{marginTop:8, color:'#ffdc7b', fontSize:13}}>⚠️ SpeechRecognition not supported. Transcript will be empty.</div>}
               </div>
             </section>
           </div>
 
-          {/* Transcript panel */}
           <section style={{...box, gridColumn: '1 / -1'}}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
               <div style={{...label, fontSize:13}}>Live Transcript (Web Speech API)</div>
               <div style={{fontSize:12, opacity:0.8}}>{transcriptText.length ? `${transcriptText.length} chars` : '—'}</div>
             </div>
             <div style={{marginTop:8, maxHeight:160, overflow:'auto', padding:12, border:`1px solid ${theme.border}`, borderRadius:12, background: theme.muted}}>
-              <div style={{whiteSpace:'pre-wrap'}}>{transcriptText || '• Click “Enable mic & camera” then “Start” to begin (Chrome/Edge over HTTPS or localhost).'} </div>
+              <div style={{whiteSpace:'pre-wrap'}}>{transcriptText || '• Click “Enable mic & camera” then “Start” to begin.'} </div>
             </div>
           </section>
         </div>
 
         <footer style={{marginTop:16, opacity:0.8, fontSize:12}}>
-          Saves each snapshot directly to <code>my_picsssss/session-{sessionId}</code> inside the folder you pick. No network uploads are performed.
+          On stop, we bundle all snapshots into <code>session-{sessionId}.tar.gz</code> and upload to Firebase Storage at <code>sessions/{sessionId}/</code>.
         </footer>
       </div>
-      {/* hidden canvas used for snapshots */}
       <canvas ref={canvasRef} style={{ display:'none' }} />
     </div>
   );
-}
-
-// DEV TESTS (kept: media error categorization)
-export function __runMediaErrorTests() {
-  const fakeWinSecure = { isSecureContext: true, location: { hostname: "example.com" } } as any;
-  const fakeWinInsecure = { isSecureContext: false, location: { hostname: "example.com" } } as any;
-  const cases = [
-    { name: 'denied secure', e: { name: 'NotAllowedError', message: 'Permission denied' }, win: fakeWinSecure, expect: 'denied' },
-    { name: 'denied insecure', e: { name: 'NotAllowedError', message: 'Permission denied' }, win: fakeWinInsecure, expect: 'insecure' },
-    { name: 'notfound', e: { name: 'NotFoundError', message: 'No capture devices' }, win: fakeWinSecure, expect: 'notfound' },
-    { name: 'overconstrained', e: { name: 'OverconstrainedError', message: 'constraint' }, win: fakeWinSecure, expect: 'overconstrained' },
-    { name: 'abort', e: { name: 'AbortError', message: 'aborted' }, win: fakeWinSecure, expect: 'abort' },
-    { name: 'other', e: { name: 'UnknownError', message: 'weird' }, win: fakeWinSecure, expect: 'other' },
-  ] as const;
-  const results = cases.map(c => ({ name: c.name, got: categorizeMediaError(c.e, c.win), expect: c.expect }));
-  console.table(results);
-  const pass = results.every(r => r.got === r.expect);
-  if (!pass) throw new Error("categorizeMediaError tests failed");
-  return pass;
-}
-
-if (typeof window !== "undefined" && (window as any).__LECTRA_RUN_TESTS__) {
-  try { __runMediaErrorTests(); console.info("✔ categorizeMediaError tests passed"); }
-  catch (e) { console.error(e); }
 }
