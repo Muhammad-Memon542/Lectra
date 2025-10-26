@@ -6,3 +6,4 @@ Promise
 .DS_Store
 /public
 /uploads/*.jpg
+.vscode/

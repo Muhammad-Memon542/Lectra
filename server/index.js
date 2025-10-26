@@ -212,6 +212,28 @@ app.post('/api/end-recording', (req, res) => {
   res.json({ success: true });
 });
 
+
+app.get('/api/list-downloads', (req, res) => {
+  try {
+    const downloadsDir = path.join(__dirname, './public/downloads');
+    
+    if (!fs.existsSync(downloadsDir)) {
+      return res.json({ files: [] });
+    }
+    
+    const files = fs.readdirSync(downloadsDir).map(filename => ({
+      name: filename,
+      path: `/downloads/${filename}`,
+      fullPath: path.join(downloadsDir, filename)
+    }));
+    
+    res.json({ files });
+  } catch (error) {
+    console.error('❌ Error listing downloads:', error);
+    res.status(500).json({ error: 'Failed to list downloads', details: error.message });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`\n🚀 Server running on http://localhost:${PORT}`);

@@ -8,14 +8,15 @@
     "build": "vite build",
     "preview": "vite preview",
     "api": "node server/index.js",
-    "start:all": "npm-run-all --parallel api dev"
+    "client": "node client/server.mjs",
+    "start:all": "npm-run-all --parallel api dev client"
   },
   "dependencies": {
     "@google/genai": "^1.27.0",
     "@google/generative-ai": "^0.24.1",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
     "html-pdf": "^3.0.1",
     "md-to-pdf": "^5.2.4",
     "multer": "^1.4.5-lts.1",

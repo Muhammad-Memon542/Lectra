@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lectra — Learn at lightening speed</title>
+  <meta name="description" content="A clean, responsive starter website built with only HTML and CSS." />
+  <style>
+/* --- MD support add-on --- */
+.md-content { line-height: 1.75; color: var(--text); }
+.md-content h1,.md-content h2,.md-content h3,.md-content h4 { margin: 1.2em 0 .4em; }
+.md-content p { margin: .6em 0; color: var(--text); }
+.md-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  background: hsl(230 22% 88% / .35); padding: .12em .38em; border-radius: .4em;
+}
+:root[data-theme="dark"] .md-content code { background: hsl(220 14% 18% / .6); }
+.md-content pre { overflow:auto; padding: 12px; border-radius: 12px; border:1px solid var(--border); background: var(--surface); }
+.md-content pre code { background: transparent; padding: 0; }
+.md-content blockquote { border-left: 4px solid var(--accent); padding-left: 12px; color: var(--muted); }
+.md-content a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+#mdTocNav a { display:block; padding:6px 8px; border-radius:10px; margin-bottom:4px; border:1px solid transparent; }
+#mdTocNav a:hover { border-color: var(--accent); background: hsl(212 100% 50% / .06); }
+
+/* ============================================
+   Lectra — Accessibility Notes & Study Games UI Kit
+   ============================================ */
+:root{
+  --bg:           hsl(252 58% 98%);
+  --text:         hsl(230 35% 14%);
+  --muted:        hsl(231 14% 44%);
+  --border:       hsl(230 22% 88%);
+  --accent:       hsl(212 100% 50%);
+  --accent-600:   hsl(212 100% 46%);
+  --accent-700:   hsl(212 100% 40%);
+  --glow:         hsl(152 72% 42%);
+  --citrus:       hsl(48 100% 55%);
+  --surface:      hsl(0 0% 100%);
+  --radius:       16px;
+  --shadow:       0 10px 30px hsl(230 30% 10% / 0.08);
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:         hsl(222 28% 8%);
+    --text:       hsl(210 20% 96%);
+    --muted:      hsl(220 10% 70%);
+    --border:     hsl(220 14% 18%);
+    --accent:     hsl(212 100% 50%);
+    --accent-600: hsl(212 100% 46%);
+    --accent-700: hsl(212 100% 40%);
+    --surface:    hsl(222 28% 10%);
+    --shadow:     0 10px 30px hsl(220 40% 2% / 0.6);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:         hsl(222 28% 8%);
+  --text:       hsl(210 20% 96%);
+  --muted:      hsl(220 10% 70%);
+  --border:     hsl(220 14% 18%);
+  --accent:     hsl(212 100% 50%);
+  --accent-600: hsl(212 100% 46%);
+  --accent-700: hsl(212 100% 40%);
+  --surface:    hsl(222 28% 10%);
+  --shadow:     0 10px 30px hsl(220 40% 2% / 0.6);
+  color-scheme: dark;
+}
+
+/* Reset / base */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body{ margin:0; font:16px/1.6 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; color:var(--text); background:var(--bg); }
+img{ max-width:100%; display:block; }
+a{ color:inherit; text-decoration:none; }
+.container{ width:min(1100px, 92%); margin-inline:auto; }
+
+/* Header / Nav */
+header{ position:sticky; top:0; z-index:10; backdrop-filter: blur(8px); background: color-mix(in oklab, var(--bg) 70%, transparent); border-bottom:1px solid var(--border); }
+.nav{ display:flex; align-items:center; justify-content:space-between; padding:12px 0; }
+.brand{ display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.3px; }
+.logo{ width:40px; height:40px; position:relative; background:var(--accent);
+  -webkit-clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
+          clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
+  box-shadow: var(--shadow);
+}
+.logo::after{ content:""; position:absolute; inset:0; border-radius:inherit; border:2px solid hsl(0 0% 100% / .45); opacity:.9; }
+.nav a{ opacity:.9; } .nav a:hover{ opacity:1; }
+.nav ul{ margin:0; padding:0; list-style:none; display:flex; gap: clamp(14px, 3vw, 28px); }
+
+/* Hero */
+.hero{ padding: clamp(56px, 8vw, 100px) 0; }
+.hero .wrap{ display:grid; gap:24px; align-items:center; }
+@media (min-width:880px){ .hero .wrap{ grid-template-columns:1.1fr .9fr; } }
+.eyebrow{ font-size:.9rem; color:var(--muted); letter-spacing:.18em; text-transform:uppercase; }
+h1{ font-size: clamp(2rem, 5vw, 3.2rem); line-height:1.1; margin:8px 0 14px; }
+.lead{ font-size: clamp(1rem, 2.2vw, 1.1rem); color:var(--muted); }
+.cta{ display:inline-flex; gap:12px; align-items:center; margin-top:22px; }
+
+.btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; height:44px; padding:0 18px; border-radius:999px; font-weight:600; border:1px solid transparent; transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease; }
+.btn-primary{ background:var(--accent); border:2px solid var(--accent-700); color:#fff; box-shadow: var(--shadow); }
+.btn-primary:hover{ transform: translateY(-1px); filter: saturate(1.05) brightness(1.02); }
+.btn-outline{ border-color:var(--border); background:var(--surface); }
+.btn-outline:hover{ border-color:var(--accent); }
+.tiny{ height:36px; padding:0 12px; font-size:.9rem; }
+
+section{ padding: clamp(44px, 6vw, 72px) 0; }
+h2{ font-size: clamp(1.6rem, 3.5vw, 2.2rem); margin:0 0 14px; }
+.section-lead{ color:var(--muted); margin-bottom:22px; }
+.section-head{ display:flex; align-items:end; justify-content:space-between; gap:12px; margin-bottom:14px; }
+.section-head .eyebrow{ letter-spacing:.18em; }
+.divider{ height:1px; background:var(--border); margin:10px 0 24px; }
+
+.grid{ display:grid; gap:18px; grid-template-columns: repeat(1, minmax(0, 1fr)); }
+@media (min-width:720px){ .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width:1024px){ .grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.card{ background:var(--surface); border:1.5px solid var(--border); border-radius: calc(var(--radius) + 6px); padding:22px; box-shadow: var(--shadow), inset 0 0 0 4px hsl(0 0% 100% / 0.6); transition: transform 160ms ease, box-shadow 160ms ease; }
+.card:hover{ transform: translateY(-2px); box-shadow: 0 18px 40px hsl(220 30% 10% / 0.15); }
+.card h3{ margin:8px 0 6px; font-size:1.15rem; }
+.card p{ color:var(--muted); margin:0; }
+.card .icon{ width:42px; height:42px; border-radius:12px; display:grid; place-items:center; font-weight:700; background:var(--accent); color:white; box-shadow: var(--shadow); }
+
+/* About */
+.about{ background:var(--bg); border-top:1px solid var(--border); border-bottom:1px solid var(--border); position:relative; }
+.about .wrap{ display:grid; gap:20px; }
+@media (min-width:920px){ .about .wrap{ grid-template-columns:1fr 1fr; } }
+.about .blob{ aspect-ratio:4/3; border-radius:28px; border:2px dashed var(--border); background:var(--surface); box-shadow: var(--shadow); }
+
+/* Forms / Inputs */
+form{ display:grid; gap:12px; }
+label{ font-weight:600; font-size:.95rem; }
+input, textarea, select{
+  width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--border);
+  background:var(--surface); color:var(--text); outline:none;
+}
+input:focus, textarea:focus, select:focus{ border-color:var(--accent); box-shadow: 0 0 0 4px hsl(212 100% 50% / 0.18); }
+textarea{ min-height:140px; resize:vertical; }
+
+footer{ border-top:1px solid var(--border); padding:20px 0 60px; color:var(--muted); }
+
+/* Notes UI */
+.notes-toolbar{ display:flex; gap:8px; align-items:center; margin:14px 0; flex-wrap:wrap; }
+.notes-toolbar .spacer{ flex:1 1 auto; }
+.notes-surface{ background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:18px; box-shadow: 0 10px 30px hsl(212 100% 50% / 0.10); }
+.notes-surface [contenteditable="true"]:focus{ outline:2px dashed var(--accent); outline-offset:4px; }
+
+.pill{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:.8rem; background:hsl(212 100% 50% / 0.12); color:var(--text); border:1px solid var(--border); }
+.pill.alt{ background:hsl(152 72% 42% / 0.12); }
+.muted{ color:var(--muted); }
+
+/* Quiz & flashcards (kept) */
+.quiz-card{ display:grid; gap:16px; }
+.quiz-meta{ display:flex; gap:8px; justify-content:space-between; }
+.answers{ display:grid; gap:10px; }
+.answer{ border:1px solid var(--border); background:var(--surface); padding:12px 14px; border-radius:14px; text-align:left; }
+.answer:hover{ border-color:var(--accent); box-shadow: 0 0 0 4px hsl(212 100% 50% / 0.14); }
+.quiz-actions{ display:flex; gap:10px; justify-content:flex-end; }
+.flashcard{ position:relative; border:1px solid var(--border); border-radius:20px; padding:22px; min-height:200px; display:grid; place-items:center; perspective:800px; background:var(--surface); box-shadow: var(--shadow); }
+.flashcard .face{ position:absolute; inset:0; padding:22px; backface-visibility:hidden; display:grid; place-content:center; text-align:center; }
+.flashcard .back{ transform: rotateY(180deg); }
+
+/* PDF viewer + layout */
+.pdf-controls{ display:grid; gap:10px; background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:12px; box-shadow: var(--shadow); }
+.pdf-controls .row{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.pdf-controls .ctl{ display:flex; gap:8px; align-items:center; font-weight:600; }
+.pdf-controls input[type="range"]{ accent-color: var(--accent); }
+.pdf-controls output{ min-width:56px; text-align:right; color:var(--muted); font-weight:600; }
+.switch{ gap:8px; }
+
+.pdf-view{ margin-top:14px; border:1px solid var(--border); border-radius:18px; background:var(--surface); box-shadow: var(--shadow); }
+.pdf-stage{ position:relative; overflow:auto; max-height:60vh; padding:12px; }
+.pdf-sheet{ width:100%; transform-origin: top left; }
+.pdf-sheet embed{ width:100%; height:80vh; border:0; display:block; }
+
+/* Layout: sidebar + stage */
+.pdf-layout{ display:grid; grid-template-columns:160px 1fr; gap:12px; margin-top:14px; align-items:start; }
+@media (max-width:980px){
+  .pdf-layout{ grid-template-columns:1fr; }
+  .pdf-sidebar{ order:2; }
+}
+
+/* Thumbnail sidebar */
+.pdf-sidebar{ position:sticky; top:80px; display:flex; flex-direction:column; gap:8px; border:1px solid var(--border); border-radius:12px; padding:8px; background:var(--surface); height:60vh; overflow:auto; }
+.thumb{ position:relative; width:100%; aspect-ratio:3/4; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--text); display:grid; place-items:center; font-weight:700; }
+.thumb:hover{ border-color: var(--accent); }
+.thumb.selected{ outline:3px solid var(--accent); outline-offset:1px; }
+.thumb::before{ content:""; position:absolute; inset:10% 12% 18% 12%; border:1px solid var(--border); border-radius:6px; background:#fff; }
+.thumb .pg{ position:absolute; right:6px; bottom:6px; padding:2px 6px; border-radius:6px; background: var(--accent); color:#fff; font-size:12px; font-variant-numeric: tabular-nums; }
+
+/* Shape system (hero art) */
+.shape-stack{ position: relative; aspect-ratio: 4/3; display:grid; place-items:center; }
+.shape{ position:absolute; border-radius:28px; border:1px solid var(--border); box-shadow: var(--shadow); }
+.shape.s1{ inset:0; background:var(--surface); transform: rotate(-2deg); }
+.shape.s2{ inset:6% 8% 10% 6%; background:var(--surface); border:2px solid var(--border); transform: rotate(2.5deg); }
+.shape.s3{ inset:12% 16% 18% 14%; background:var(--surface); outline:1px solid hsl(0 0% 100% / .3); transform: rotate(-1deg); }
+
+/* Mode CTAs (kept) */
+.mode-grid{ display:grid; gap:16px; grid-template-columns:1fr; margin:14px 0 22px; }
+@media(min-width:720px){ .mode-grid{ grid-template-columns:1fr 1fr; } }
+.mode-btn{ position:relative; border:1.5px solid var(--border); background:var(--surface); border-radius:24px; padding:22px; display:flex; align-items:center; gap:14px; box-shadow: var(--shadow); overflow:hidden; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.mode-btn:hover{ transform: translateY(-2px) scale(1.01); border-color:var(--accent); box-shadow: 0 18px 40px hsl(220 30% 10% / 0.15); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a class="brand" href="#home" aria-label="Lectra Home">
+        <span class="logo" aria-hidden="true" title="Lectra"></span>
+        <span>Lectra</span>
+      </a>
+      <nav aria-label="Primary">
+        <ul>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#about">About</a></li>
+          <li>
+            <button id="themeToggle" class="btn btn-outline tiny" aria-pressed="false" title="Toggle theme">🌙 Dark</button>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="home">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container wrap">
+        <div>
+          <p class="eyebrow">Lectra — Learn at lightening speed</p>
+          <h1>Accessible notes up top. Fun study games below.</h1>
+          <p class="lead">Design-first UI for an accessibility note service. Take crisp notes, then reinforce with a Quiz or Flashcards—no JS game logic here, just vibrant, accessible components ready for you to wire up.</p>
+          <div class="cta">
+            <a class="btn btn-primary" href="#notes">Go to Notes</a>
+            <a class="btn btn-outline" href="#lab">Open Study Lab</a>
+          </div>
+        </div>
+        <div aria-hidden="true">
+          <div class="shape-stack" aria-hidden="true">
+            <div class="shape s1"></div>
+            <div class="shape s2"></div>
+            <div class="shape s3"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Notes FIRST -->
+    <section id="notes" aria-labelledby="notes-title">
+      <div class="container">
+        <h2 id="notes-title">Your Notes (PDF / Markdown)</h2>
+        <p class="section-lead">
+          Pick a file from your local <code>notes/</code> folder. No uploads, no directory picker.
+        </p>
+
+        <!-- Notes toolbar: ONLY dropdown from our folder -->
+        <div class="notes-toolbar" role="toolbar" aria-label="Notes input">
+          <label class="ctl" for="notesSelect"><span>File</span></label>
+          <select id="notesSelect" style="min-width:280px">
+            <option value="" selected disabled>Select a file…</option>
+            <!-- Populated from /api/files -->
+          </select>
+
+          <div class="spacer"></div>
+          <a class="btn btn-outline tiny" id="downloadPdf" href="/notes/sample.pdf" download>Download sample</a>
+        </div>
+
+        <!-- PDF LAYOUT -->
+        <div id="pdfContainer">
+          <div class="pdf-controls" role="toolbar" aria-label="PDF controls">
+            <div class="row">
+              <label class="ctl"><span>Page</span>
+                <select id="pdfPageSelect" aria-label="Page selector">
+                  <option value="1" selected>1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                  <option value="8">8</option>
+                  <option value="9">9</option>
+                  <option value="10">10</option>
+                  <option value="11">11</option>
+                  <option value="12">12</option>
+                  <option value="13">13</option>
+                  <option value="14">14</option>
+                  <option value="15">15</option>
+                  <option value="16">16</option>
+                  <option value="17">17</option>
+                  <option value="18">18</option>
+                  <option value="19">19</option>
+                  <option value="20">20</option>
+                </select>
+              </label>
+              <label class="ctl"><span>Zoom</span>
+                <input id="pdfZoom" type="range" min="50" max="200" value="100" />
+                <output id="zoomOut" for="pdfZoom">100%</output>
+              </label>
+              <button class="btn btn-outline" id="fitBtn" title="Fit (F)">Fit</button>
+              <button class="btn btn-outline" id="z100" title="100% (1)">100%</button>
+              <button class="btn btn-outline" id="z150" title="150% (2)">150%</button>
+            </div>
+          </div>
+
+          <div class="pdf-layout">
+            <aside class="pdf-sidebar" aria-label="Page thumbnails">
+              <button class="thumb selected" data-page="1"><span class="pg">1</span></button>
+              <button class="thumb" data-page="2"><span class="pg">2</span></button>
+              <button class="thumb" data-page="3"><span class="pg">3</span></button>
+              <button class="thumb" data-page="4"><span class="pg">4</span></button>
+              <button class="thumb" data-page="5"><span class="pg">5</span></button>
+            </aside>
+
+            <div class="pdf-view" id="pdfView">
+              <div class="pdf-stage" id="pdfStage">
+                <div class="pdf-sheet" id="pdfSheet">
+                  <!-- leave blank by default to avoid 404 if sample.pdf doesn't exist -->
+                  <embed id="pdfEmbed" src="" type="application/pdf" />
+                </div>
+              </div>
+              <div class="hints">
+                <span class="kbd">←/→</span> page &nbsp;•&nbsp; <span class="kbd">+</span>/<span class="kbd">-</span> zoom &nbsp;•&nbsp; <span class="kbd">F</span> fit
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MARKDOWN VIEW -->
+        <div id="mdContainer" class="notes-surface" hidden>
+          <div class="grid" style="grid-template-columns: 220px 1fr;">
+            <aside id="mdToc" class="card" aria-label="Markdown table of contents" style="position:sticky; top:80px; max-height:60vh; overflow:auto;">
+              <h3 style="margin-top:0;">Contents</h3>
+              <nav id="mdTocNav" aria-label="Markdown TOC"></nav>
+            </aside>
+            <article id="mdContent" class="md-content" aria-label="Markdown content"></article>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" aria-labelledby="features-title">
+      <div class="container">
+        <div class="section-head">
+          <h2 id="features-title">Features</h2>
+          <span class="eyebrow">Built for learning</span>
+        </div>
+        <div class="divider"></div>
+        <div class="grid">
+          <div class="card">
+            <div class="icon">A</div>
+            <h3>Accessible by default</h3>
+            <p>High-contrast theme tokens, keyboard shortcuts, and semantic HTML throughout.</p>
+          </div>
+          <div class="card">
+            <div class="icon">N</div>
+            <h3>Notes-first workspace</h3>
+            <p>Sticky thumbnails, zoom controls, and a clean PDF stage ready for pdf.js.</p>
+          </div>
+          <div class="card">
+            <div class="icon">G</div>
+            <h3>Gamified practice</h3>
+            <p>Two study modes—Quiz and Flashcards—with configurable options.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Study Lab (Bottom of page) -->
+    <section id="lab" class="about" aria-labelledby="lab-title">
+      <div class="container wrap">
+        <div>
+          <h2 id="lab-title">Study Lab</h2>
+          <p class="section-lead">Choose your mode: a configurable Quiz game or an interactive Flashcard flow. All UI, no implementation—ready for your JS.</p>
+
+          <div class="grid two mode-options">
+            <div class="card">
+              <h3>Quiz Options</h3>
+              <div class="grid two">
+                <div>
+                  <label for="difficulty">Difficulty</label>
+                  <select id="difficulty" name="difficulty">
+                    <option>Easy</option>
+                    <option>Medium</option>
+                    <option>Hard</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="qtype">Question type</label>
+                  <select id="qtype" name="qtype">
+                    <option>Multiple Choice</option>
+                    <option>True / False</option>
+                  </select>
+                </div>
+              </div>
+              <div class="cta">
+                <a class="btn btn-primary" href="quiz.html">Go to Quiz</a>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>Flashcard Options</h3>
+              <div class="grid two">
+                <div>
+                  <label for="deck">Select deck</label>
+                  <select id="deck" name="deck">
+                    <option>My Notes — Week 1</option>
+                    <option>Key Terms — Accessibility</option>
+                    <option>Custom Deck</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="order">Order</label>
+                  <select id="order" name="order">
+                    <option>Shuffled</option>
+                    <option>Original</option>
+                    <option>Least-known first</option>
+                  </select>
+                </div>
+              </div>
+              <div class="cta">
+                <a class="btn btn-primary" href="flashcards.html">Open Deck</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="shape-cta">
+            <!-- Cute asymmetric blob for Quiz -->
+            <a class="blob-btn quiz" href="quiz.html" aria-label="Start Quiz">
+              <svg class="blob-svg" viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M120,210 C90,120 210,60 300,90 C390,120 450,70 510,140 C560,195 500,290 420,320 C330,355 230,320 180,300 C140,285 140,270 120,210 Z" fill="currentColor" fill-opacity="0.14"/>
+                <path d="M150,230 C140,170 240,120 320,140 C400,160 440,120 490,170 C520,205 470,270 410,290 C340,315 260,290 210,275 C170,265 160,255 150,230 Z" fill="currentColor" fill-opacity="0.18"/>
+              </svg>
+              <div class="blob-cap">
+                <svg class="blob-ico" viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="5" width="13" height="16" rx="3" fill="currentColor" opacity="0.9"/>
+                  <rect x="8" y="3" width="13" height="16" rx="3" fill="currentColor" opacity="0.6"/>
+                </svg>
+                <div>
+                  <span class="blob-title">Flashcards</span>
+                  <span class="blob-sub">Spaced repetition ready</span>
+                </div>
+              </div>
+              <div class="confetti">
+                <span class="c3" style="left:16%; top:70%; --dx:-12px;"></span>
+                <span class="c2" style="left:24%; top:66%; --dx:10px;"></span>
+                <span class="c1" style="left:35%; top:69%; --dx:-8px;"></span>
+                <span class="c5" style="left:46%; top:63%; --dx:14px;"></span>
+                <span class="c4" style="left:58%; top:67%; --dx:-16px;"></span>
+                <span class="c2" style="left:68%; top:64%; --dx:12px;"></span>
+                <span class="c3" style="left:78%; top:66%; --dx:-10px;"></span>
+                <span class="c1" style="left:86%; top:62%; --dx:18px;"></span>
+              </div>
+            </a>
+
+            <!-- Cute asymmetric blob for Flashcards -->
+            <a class="blob-btn cards" href="flashcards.html" aria-label="Open Flashcards">
+              <svg class="blob-svg" viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M80,250 C70,170 170,110 250,120 C330,130 360,80 440,110 C520,140 540,230 480,290 C420,350 320,340 240,320 C170,300 90,310 80,250 Z" fill="currentColor" fill-opacity="0.14"/>
+                <path d="M110,250 C105,195 185,150 260,155 C330,160 360,120 425,140 C490,160 505,230 455,275 C405,320 320,315 255,300 C200,287 120,300 110,250 Z" fill="currentColor" fill-opacity="0.18"/>
+              </svg>
+              <div class="blob-cap">
+                <span class="blob-ico">🃏</span>
+                <div>
+                  <span class="blob-title">Flashcards</span>
+                  <span class="blob-sub">Spaced repetition ready</span>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <div aria-hidden="true" class="blob"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <small>© <span id="year"></span> Lectra. Learn at lightening speed. UI by Lectra Design.</small>
+    </div>
+  </footer>
+
+  <!-- Tiny progressive enhancement: update year without breaking no-JS -->
+  <script>
+    (function(){
+      var y = document.getElementById('year');
+      if (y) y.textContent = new Date().getFullYear();
+    })();
+  </script>
+
+  <script>
+    // === CONFIG ===
+    // Absolute base so filenames with spaces/() work under any route:
+    var BASE_PATH = "../public/downloads/";
+  </script>
+
+  <script>
+    // === PDF UI wiring (UI only; ready for pdf.js) ===
+    (function(){
+      var pdfSheet = document.getElementById('pdfSheet');
+      var pdfStage = document.getElementById('pdfStage');
+      var pdf = document.getElementById('pdfEmbed');
+
+      var pageSel = document.getElementById('pdfPageSelect');
+      var zoom = document.getElementById('pdfZoom');
+      var zoomOut = document.getElementById('zoomOut');
+      var fitBtn = document.getElementById('fitBtn');
+      var z100 = document.getElementById('z100');
+      var z150 = document.getElementById('z150');
+      var thumbs = Array.prototype.slice.call(document.querySelectorAll('.thumb'));
+
+      function setZoom(val){
+        var scale = Math.max(0.5, Math.min(2, (parseInt(val)||100)/100));
+        pdfSheet.style.transform = 'scale(' + scale + ')';
+        zoomOut.textContent = Math.round(scale*100) + '%';
+      }
+      function fit(){
+        var w = pdfStage.clientWidth - 24;
+        var base = pdf.clientWidth || w;
+        var scale = Math.max(0.5, Math.min(2, w / base));
+        zoom.value = Math.round(scale*100);
+        setZoom(zoom.value);
+      }
+      setZoom(zoom.value);
+
+      zoom.addEventListener('input', function(){ setZoom(this.value); });
+      fitBtn.addEventListener('click', fit);
+      z100.addEventListener('click', function(){ zoom.value = 100; setZoom(100); });
+      z150.addEventListener('click', function(){ zoom.value = 150; setZoom(150); });
+      window.addEventListener('resize', fit);
+
+      function setPage(n){
+        pageSel.value = String(n);
+        thumbs.forEach(function(t){ t.classList.toggle('selected', t.getAttribute('data-page') == String(n)); });
+      }
+      pageSel.addEventListener('change', function(){ setPage(this.value); });
+      thumbs.forEach(function(t){ t.addEventListener('click', function(){ setPage(this.getAttribute('data-page')); }); });
+
+      window.addEventListener('keydown', function(e){
+        if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+        if (e.key === 'ArrowRight') { e.preventDefault(); var idx = pageSel.selectedIndex; if(idx < pageSel.options.length-1){ pageSel.selectedIndex = idx+1; setPage(pageSel.value); } }
+        if (e.key === 'ArrowLeft')  { e.preventDefault(); var idx2 = pageSel.selectedIndex; if(idx2 > 0){ pageSel.selectedIndex = idx2-1; setPage(pageSel.value); } }
+        if (e.key === '+' || e.key === '=') { e.preventDefault(); zoom.value = Math.min(200, parseInt(zoom.value)+10); setZoom(zoom.value); }
+        if (e.key === '-') { e.preventDefault(); zoom.value = Math.max(50, parseInt(zoom.value)-10); setZoom(zoom.value); }
+        if (e.key.toLowerCase() === 'f') { e.preventDefault(); fit(); }
+        if (e.key === '1') { zoom.value = 100; setZoom(100); }
+        if (e.key === '2') { zoom.value = 150; setZoom(150); }
+      });
+    })();
+  </script>
+
+  <script>
+    // === Theme toggle (localStorage + attribute) ===
+    (function(){
+      var STORAGE_KEY = 'lectra.theme';
+      function apply(theme){
+        var btn = document.getElementById('themeToggle');
+        if(theme === 'dark'){
+          document.documentElement.setAttribute('data-theme','dark');
+          if(btn){ btn.textContent = '🌞 Light'; btn.setAttribute('aria-pressed','true'); }
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+          if(btn){ btn.textContent = '🌙 Dark'; btn.setAttribute('aria-pressed','false'); }
+        }
+      }
+      function initial(){
+        try {
+          var saved = localStorage.getItem(STORAGE_KEY);
+          if(saved === 'light' || saved === 'dark') return saved;
+        } catch(e){}
+        return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      }
+      var current = initial();
+      apply(current);
+      var btn = document.getElementById('themeToggle');
+      if(btn){
+        btn.addEventListener('click', function(){
+          current = (document.documentElement.getAttribute('data-theme') === 'dark') ? 'light' : 'dark';
+          try { localStorage.setItem(STORAGE_KEY, current); } catch(e){}
+          apply(current);
+        });
+      }
+    })();
+  </script>
+
+  <!-- === Markdown loader & renderer === -->
+  <script>
+    (function(){
+      var pdfContainer = document.getElementById('pdfContainer');
+      var mdContainer  = document.getElementById('mdContainer');
+      var mdContent    = document.getElementById('mdContent');
+      var mdTocNav     = document.getElementById('mdTocNav');
+      var pdfEmbed     = document.getElementById('pdfEmbed');
+      var select       = document.getElementById('notesSelect');
+
+      // Populate dropdown from the live server list
+      async function populate(){
+        // Clear any non-placeholder options
+        select.querySelectorAll('option:not([disabled])').forEach(o => o.remove());
+
+        const r = await fetch('/api/files');
+        if (!r.ok) throw new Error(await r.text());
+        const data = await r.json();
+        const files = data.files || [];
+
+        if (!files.length) {
+          const opt = document.createElement('option');
+          opt.disabled = true;
+          opt.textContent = 'No .pdf or .md files found in /notes';
+          select.appendChild(opt);
+          return;
+        }
+
+        files.forEach(function(item){
+          var opt = document.createElement('option');
+          opt.value = item.file;          // e.g., "Week 1 Notes (MD).md"
+          opt.dataset.type = item.type;   // "pdf" | "md"
+          opt.textContent = item.label + ' — ' + item.file;
+          select.appendChild(opt);
+        });
+      }
+
+      function isMarkdownName(name){
+        name = (name||'').toLowerCase();
+        return name.endsWith('.md') || name.endsWith('.markdown') || name.endsWith('.mdown') || name.endsWith('.txt');
+      }
+      function isPdfName(name){
+        name = (name||'').toLowerCase();
+        return name.endsWith('.pdf');
+      }
+
+      function escapeHtml(s){
+        return s.replace(/[&<>"']/g, function(c){
+          return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+        });
+      }
+
+      // Tiny MD -> HTML
+      function mdToHtml(md){
+        md = md.replace(/\r\n?/g, '\n');
+
+        var blocks = [];
+        md = md.replace(/```([\s\S]*?)```/g, function(_, code){
+          var idx = blocks.push(code) - 1;
+          return '§§CODEBLOCK'+idx+'§§';
+        });
+
+        md = escapeHtml(md);
+
+        md = md.replace(/^######\s+(.*)$/gm, '<h6 id="$1">$1</h6>')
+               .replace(/^#####\s+(.*)$/gm,  '<h5 id="$1">$1</h5>')
+               .replace(/^####\s+(.*)$/gm,   '<h4 id="$1">$1</h4>')
+               .replace(/^###\s+(.*)$/gm,    '<h3 id="$1">$1</h3>')
+               .replace(/^##\s+(.*)$/gm,     '<h2 id="$1">$1</h2>')
+               .replace(/^#\s+(.*)$/gm,      '<h1 id="$1">$1</h1>');
+
+        md = md
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.+?)\*/g, '<em>$1</em>')
+          .replace(/`([^`]+?)`/g, '<code>$1</code>')
+          .replace(/\[([^\]]+?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+        md = md.replace(/^\>\s?(.*)$/gm, '<blockquote>$1</blockquote>');
+
+        md = md.replace(/(^|\n)\s*[-*]\s+(.*)(?=\n|$)/g, function(_, lead, item){
+          return lead + '<ul><li>'+item+'</li></ul>';
+        }).replace(/<\/ul>\s*<ul>/g, '');
+
+        md = md.replace(/(^|\n)\s*\d+\.\s+(.*)(?=\n|$)/g, function(_, lead, item){
+          return lead + '<ol><li>'+item+'</li></ol>';
+        }).replace(/<\/ol>\s*<ol>/g, '');
+
+        md = md.replace(/(?:^|\n)(?!\s*<)([^<\n][^\n]*)/g, function(_, line){
+          if (/^\s*<(h\d|ul|ol|li|pre|blockquote)/.test(line)) return '\n'+line;
+          if (/^\s*$/.test(line)) return '\n';
+          return '\n<p>'+line+'</p>';
+        });
+
+        md = md.replace(/§§CODEBLOCK(\d+)§§/g, function(_, i){
+          var code = blocks[+i] || '';
+          return '<pre><code>'+escapeHtml(code)+'</code></pre>';
+        });
+
+        return md;
+      }
+
+      function buildToc(container){
+        if(!mdTocNav) return;
+        mdTocNav.innerHTML = '';
+        var heads = container.querySelectorAll('h1, h2, h3');
+        heads.forEach(function(h, i){
+          var slug = (h.textContent || ('sec-'+i))
+            .toLowerCase().trim()
+            .replace(/[^\w\- ]+/g, '')
+            .replace(/\s+/g, '-');
+          h.id = slug;
+          var a = document.createElement('a');
+          a.href = '#'+slug;
+          a.textContent = h.textContent;
+          a.style.marginLeft = (h.tagName === 'H2' ? '8px' : (h.tagName === 'H3' ? '16px' : '0'));
+          mdTocNav.appendChild(a);
+        });
+      }
+
+      function showPdf(){ pdfContainer.hidden = false; mdContainer.hidden = true; }
+      function showMd(){  pdfContainer.hidden = true;  mdContainer.hidden  = false; }
+
+      // Load file from our BASE_PATH only
+      function loadSelection(){
+        var file = select.value;
+        if(!file) return;
+
+        // Encode filename segment so spaces/() work
+        var path = BASE_PATH + encodeURIComponent(file);
+
+        if (isPdfName(file)) {
+          pdfEmbed.src = path;
+          showPdf();
+        } else if (isMarkdownName(file)) {
+          fetch(path).then(async function(r){
+            if(!r.ok){
+              var msg = "";
+              try { msg = await r.text(); } catch(e){}
+              throw new Error("HTTP " + r.status + " " + r.statusText + " — " + path + (msg ? ("\n" + msg) : ""));
+            }
+            return r.text();
+          }).then(function(text){
+            mdContent.innerHTML = mdToHtml(text);
+            buildToc(mdContent);
+            showMd();
+          }).catch(function(err){
+            alert("Could not load markdown: " + err.message);
+          });
+        } else {
+          alert('Unsupported file type in list: ' + file);
+        }
+      }
+
+      // Boot
+      populate().then(function(){
+        select.addEventListener('change', loadSelection);
+      }).catch(function(err){
+        alert('Could not list notes: ' + err.message);
+      });
+    })();
+  </script>
+</body>
+</html>
