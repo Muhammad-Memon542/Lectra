@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
+import { mdToPdf } from 'md-to-pdf';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -175,118 +176,26 @@ Here are the lecture materials:`
 
 app.post('/api/download-pdf', async (req, res) => {
   const { notes, sessionId } = req.body;
-  
+
   try {
-    const filename = `notes_${sessionId}_${Date.now()}.html`;
     const downloadsDir = path.join(__dirname, '../public/downloads');
-    
-    if (!fs.existsSync(downloadsDir)) {
-      fs.mkdirSync(downloadsDir, { recursive: true });
-    }
-    
-    const filepath = path.join(downloadsDir, filename);
-    
-    const fullHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Lecture Notes</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      line-height: 1.8;
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 60px 40px;
-      color: #333;
-      background: #fff;
-    }
-    h1 {
-      color: #2c3e50;
-      border-bottom: 4px solid #3498db;
-      padding-bottom: 15px;
-      margin-bottom: 30px;
-      font-size: 2.5em;
-    }
-    h2 {
-      color: #34495e;
-      margin-top: 40px;
-      border-bottom: 2px solid #95a5a6;
-      padding-bottom: 10px;
-      font-size: 1.8em;
-    }
-    h3 {
-      color: #7f8c8d;
-      margin-top: 25px;
-      font-size: 1.4em;
-    }
-    code {
-      background-color: #f4f4f4;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-family: 'Courier New', monospace;
-      font-size: 0.9em;
-    }
-    pre {
-      background-color: #f8f9fa;
-      padding: 20px;
-      border-radius: 6px;
-      overflow-x: auto;
-      border-left: 4px solid #3498db;
-    }
-    pre code {
-      background: none;
-      padding: 0;
-    }
-    ul, ol {
-      margin-left: 25px;
-      margin-bottom: 20px;
-    }
-    li {
-      margin-bottom: 10px;
-      line-height: 1.6;
-    }
-    p {
-      margin-bottom: 15px;
-      text-align: justify;
-    }
-    strong {
-      color: #2c3e50;
-    }
-    @media print {
-      body {
-        padding: 20px;
-      }
-      h1 {
-        page-break-before: avoid;
-      }
-      h2, h3 {
-        page-break-after: avoid;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="lecture-notes">
-    ${notes}
-  </div>
-</body>
-</html>
-    `;
-    
-    fs.writeFileSync(filepath, fullHtml);
-    console.log('📄 PDF file created:', filename);
-    
-    res.json({ 
-      success: true, 
-      downloadUrl: `/downloads/${filename}`,
-      message: 'Notes generated successfully. Open the file and print to PDF (Ctrl+P / Cmd+P).'
+    if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir, { recursive: true });
+
+    const base = `notes_${sessionId}_${Date.now()}`;
+    const mdFile = path.join(downloadsDir, `${base}.md`);
+
+    // Save Markdown file
+    fs.writeFileSync(mdFile, notes);
+
+    // Response with file paths
+    res.json({
+      success: true,
+      markdownUrl: `/downloads/${base}.md`,
+      message: 'Markdown successfully.'
     });
-    
   } catch (error) {
-    console.error('Error creating PDF:', error);
-    res.status(500).json({ error: 'Failed to create PDF', details: error.message });
+    console.error('❌ PDF generation error:', error);
+    res.status(500).json({ error: 'Failed to generate PDF', details: error.message });
   }
 });
 

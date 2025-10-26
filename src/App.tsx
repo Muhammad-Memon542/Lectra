@@ -554,7 +554,7 @@ function App() {
 
       if (data.notes) {
         setNotes(data.notes);
-        setStatus('✅ Lecture notes generated! Download as PDF.');
+        setStatus('✅ Lecture notes generated! Available to Download.');
       } else {
         setStatus('❌ No notes received from Gemini');
       }
@@ -575,10 +575,10 @@ function App() {
         body: JSON.stringify({ notes, sessionId }),
       });
 
-      if (!response.ok) throw new Error('Failed to create PDF');
-      const data = await response.json();
-      setStatus('✅ PDF ready! Opening in new tab...');
-      window.open(`http://localhost:3001${data.downloadUrl}`, '_blank');
+      // if (!response.ok) throw new Error('Failed to create PDF');
+      // const data = await response.json();
+      setStatus('✅ File downloaded.');
+      // window.open(`http://localhost:3001${data.downloadUrl}`, '_blank');
     } catch (error) {
       setStatus('❌ Error creating PDF');
     }
