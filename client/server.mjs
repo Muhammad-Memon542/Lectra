@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
 // ✅ Your notes folder (absolute path). Change if needed.
-const NOTES_DIR = "./public/downloads";
+const NOTES_DIR = process.env.NOTES_DIR || process.env.NOTES_DIR || path.join(process.cwd(), "public", "downloads");
 // Root folder where index.html lives (same folder as this server file)
 const ROOT = __dirname;
 const PORT = process.env.PORT || 5500;
@@ -79,9 +79,9 @@ const server = createServer(async (req, res) => {
       return sendJSON(res, 200, { files });
     }
 
-    // --- Serve ./* directly from NOTES_DIR (outside ROOT is fine)
-    if (url.pathname.startsWith("../")) {
-      const rel = url.pathname.slice("../".length);
+    // --- Serve /notes/* directly from NOTES_DIR (outside ROOT is fine)
+    if (url.pathname.startsWith("/notes/")) {
+      const rel = url.pathname.slice("/notes/".length);
       const filePath = safeJoin(NOTES_DIR + path.sep, rel);
       if (!existsSync(filePath)) { res.writeHead(404); res.end("Not found"); return; }
       const ext = extname(filePath).toLowerCase();
