@@ -6,6 +6,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
 import { mdToPdf } from 'md-to-pdf';
+import dotenv from 'dotenv';
+
+dotenv.config(); // Load .env variables for Google API key
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,13 +29,14 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Initialize Gemini AI with your API key
-const genAI = new GoogleGenerativeAI('AIzaSyB5o3tBs2c2VWMtXrcBuKGAyXtLEWBuZgc');
+// Initialize Gemini AI with API key from .env or fallback
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || 'AIzaSyB5o3tBs2c2VWMtXrcBuKGAyXtLEWBuZgc');
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 app.use('/downloads', express.static(path.join(__dirname, '../public/downloads')));
+app.use('/audio', express.static(path.join(__dirname, '../public/audio')));
 
 // Store recording sessions
 const sessions = new Map();
@@ -191,7 +195,7 @@ app.post('/api/download-pdf', async (req, res) => {
     res.json({
       success: true,
       markdownUrl: `/downloads/${base}.md`,
-      message: 'Markdown successfully.'
+      message: 'Markdown generated successfully.'
     });
   } catch (error) {
     console.error('❌ PDF generation error:', error);
@@ -212,7 +216,6 @@ app.post('/api/end-recording', (req, res) => {
   res.json({ success: true });
 });
 
-
 app.get('/api/list-downloads', (req, res) => {
   try {
     const downloadsDir = path.join(__dirname, './public/downloads');
@@ -231,6 +234,79 @@ app.get('/api/list-downloads', (req, res) => {
   } catch (error) {
     console.error('❌ Error listing downloads:', error);
     res.status(500).json({ error: 'Failed to list downloads', details: error.message });
+  }
+});
+
+// ElevenLabs TTS Endpoint with Hardcoded API Key
+app.post('/api/text-to-speech', async (req, res) => {
+  const { text } = req.body;
+
+  if (!text) {
+    console.error('❌ No text provided in request body');
+    return res.status(400).json({ error: 'Text is required' });
+  }
+
+  const ELEVENLABS_API_KEY = 'e17110b6a55db64540ef4d445ed3d39bfdd5510a09ac6b2c805489397bd967ae';
+  console.log('🔑 ElevenLabs API key (first 20 chars):', ELEVENLABS_API_KEY.substring(0, 20));
+  console.log('🔍 Full request headers:', {
+    'Accept': 'audio/mpeg',
+    'Content-Type': 'application/json',
+    'xi-api-key': ELEVENLABS_API_KEY.substring(0, 20) + '...' // Hide full key
+  });
+  console.log(`🎤 Generating TTS for text: "${text.substring(0, 50)}..." (length: ${text.length} chars)`);
+
+  try {
+    const requestBody = {
+      text: text,
+      model_id: 'eleven_multilingual_v2',
+      voice_settings: {
+        stability: 0.5,
+        similarity_boost: 0.5
+      }
+    };
+    console.log('📤 Request body:', JSON.stringify(requestBody, null, 2));
+
+    const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM', {
+      method: 'POST',
+      headers: {
+        'Accept': 'audio/mpeg',
+        'Content-Type': 'application/json',
+        'xi-api-key': ELEVENLABS_API_KEY
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    console.log(`📡 Response status: ${response.status} ${response.statusText}`);
+
+    if (!response.ok) {
+      let errorDetails = `HTTP ${response.status} ${response.statusText}`;
+      try {
+        const errorBody = await response.json();
+        errorDetails += `: ${JSON.stringify(errorBody)}`;
+      } catch (parseErr) {
+        const errorText = await response.text();
+        errorDetails += `: ${errorText}`;
+      }
+      throw new Error(errorDetails);
+    }
+
+    const audioDir = path.join(__dirname, '../public/audio');
+    if (!fs.existsSync(audioDir)) fs.mkdirSync(audioDir, { recursive: true });
+
+    const audioFilename = `tts_${Date.now()}.mp3`;
+    const audioPath = path.join(audioDir, audioFilename);
+    
+    const audioBuffer = await response.arrayBuffer();
+    fs.writeFileSync(audioPath, Buffer.from(audioBuffer));
+
+    console.log(`✅ TTS generated: ${audioFilename}`);
+
+    const audioUrl = `/audio/${audioFilename}`;
+    res.json({ success: true, audioUrl });
+
+  } catch (error) {
+    console.error('❌ ElevenLabs TTS error:', error.message);
+    res.status(500).json({ error: 'Failed to generate speech', details: error.message });
   }
 });
 
