@@ -310,6 +310,82 @@ app.post('/api/text-to-speech', async (req, res) => {
   }
 });
 
+// === QUIZ & FLASHCARDS GENERATION ENDPOINTS ===
+// Helper to call Gemini with a strict-JSON prompt
+async function callGeminiJSON({ modelName = 'gemini-2.0-flash', prompt }) {
+  const model = genAI.getGenerativeModel({ model: modelName, generationConfig: { responseMimeType: 'application/json' } });
+  const result = await model.generateContent([{ text: prompt }]);
+  const response = await result.response;
+  const text = response.text();
+  // Defensive parse
+  try { return JSON.parse(text); } catch (e) { throw new Error("Gemini did not return valid JSON: " + text.slice(0, 400)); }
+}
+
+// POST /api/generate-quiz  body: { text, count, difficulty, qtype }
+app.post('/api/generate-quiz', async (req, res) => {
+  try {
+    const { text = '', count = 8, difficulty = 'Medium', qtype = 'Multiple Choice' } = req.body || {};
+    const prompt = `
+You are a tutor. Create a ${qtype} quiz from the given study material.
+Difficulty: ${difficulty}. Number of questions: ${count}.
+
+Return STRICT JSON matching exactly:
+{
+  "quiz": [
+    {
+      "question": "string",
+      "choices": ["string", "string", "string", "string"],
+      "correctIndex": 0,
+      "explanation": "string"
+    }
+  ]
+}
+
+Rules:
+- choices must be 3–5 items
+- correctIndex must be an integer pointing at the right choice
+- no markdown, no prose, JSON ONLY.
+
+Study material:
+"""${text.slice(0, 8000)}"""`;
+    const json = await callGeminiJSON({ prompt });
+    res.json(json);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: String(err.message || err) });
+  }
+});
+
+// POST /api/generate-flashcards  body: { text, count }
+app.post('/api/generate-flashcards', async (req, res) => {
+  try {
+    const { text = '', count = 20 } = req.body || {};
+    const prompt = `
+Create ${count} flashcards from the study material. Prefer definitions, key terms, formulas, and Q/A facts.
+
+Return STRICT JSON matching exactly:
+{
+  "cards": [
+    { "front": "string (question/term)", "back": "string (answer/definition)" }
+  ]
+}
+
+Rules:
+- JSON ONLY. No markdown.
+- Keep "front" concise, "back" clear.
+- Avoid duplicates.
+
+Study material:
+"""${text.slice(0, 8000)}"""`;
+    const json = await callGeminiJSON({ prompt });
+    res.json(json);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: String(err.message || err) });
+  }
+});
+
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`\n🚀 Server running on http://localhost:${PORT}`);

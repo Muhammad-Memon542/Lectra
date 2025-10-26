@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lectra — Flashcards</title>
+  <meta name="description" content="Lectra Flashcards — generate on demand, keeps exact count, simple reveal flip." />
+  <link rel="icon" href="data:,">
+  <style>
+    :root{
+      --bg:           hsl(252 58% 98%);
+      --text:         hsl(230 35% 14%);
+      --muted:        hsl(231 14% 44%);
+      --border:       hsl(230 22% 88%);
+      --accent:       hsl(212 100% 50%);
+      --accent-700:   hsl(212 100% 40%);
+      --surface:      hsl(0 0% 100%);
+      --radius:       18px;
+      --shadow:       0 10px 30px hsl(230 30% 10% / 0.08);
+      color-scheme: light dark;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:hsl(222 28% 8%); --text:hsl(210 20% 96%);
+        --muted:hsl(220 10% 70%); --border:hsl(220 14% 18%);
+        --surface:hsl(222 28% 10%); --shadow:0 10px 30px hsl(220 40% 2% / 0.6);
+      }
+    }
+    :root[data-theme="dark"]{
+      --bg:hsl(222 28% 8%); --text:hsl(210 20% 96%);
+      --muted:hsl(220 10% 70%); --border:hsl(220 14% 18%);
+      --surface:hsl(222 28% 10%); --shadow:0 10px 30px hsl(220 40% 2% / 0.6);
+      color-scheme:dark;
+    }
+
+    *,*::before,*::after{ box-sizing:border-box; }
+    body{ margin:0; font:16px/1.6 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; color:var(--text); background:var(--bg); }
+    a{ color:inherit; text-decoration:none; }
+    .container{ width:min(1100px,92%); margin-inline:auto; }
+
+    header{ position:sticky; top:0; z-index:10; backdrop-filter: blur(8px); background: color-mix(in oklab, var(--bg) 70%, transparent); border-bottom:1px solid var(--border); }
+    .nav{ display:flex; align-items:center; justify-content:space-between; padding:12px 0; }
+    .brand{ display:flex; align-items:center; gap:10px; font-weight:700; }
+    .logo{ width:40px; height:40px; background:var(--accent); clip-path: polygon(25% 6.7%,75% 6.7%,100% 50%,75% 93.3%,25% 93.3%,0% 50%); border-radius:8px; box-shadow:var(--shadow); position:relative; }
+    .logo::after{ content:""; position:absolute; inset:0; border-radius:inherit; border:2px solid hsl(0 0% 100% /.45); }
+    .nav ul{ list-style:none; display:flex; gap:clamp(14px,3vw,28px); margin:0; padding:0; }
+    .btn{ display:inline-flex; align-items:center; justify-content:center; height:40px; padding:0 14px; border-radius:999px; border:1px solid var(--border); background:var(--surface); font-weight:600; cursor:pointer; }
+    .btn[disabled]{ opacity:.6; cursor:not-allowed; }
+    .btn-primary{ background:var(--accent); border-color:var(--accent-700); color:#fff; box-shadow:var(--shadow); }
+    .btn-ghost{ background:transparent; }
+
+    main{ padding-block: clamp(44px,6vw,72px); }
+    .page-head{ display:flex; align-items:end; justify-content:space-between; gap:12px; margin-bottom:16px; }
+    h1{ font-size: clamp(1.8rem, 4.4vw, 2.4rem); line-height:1.15; margin:0; }
+    .eyebrow{ font-size:.9rem; color:var(--muted); letter-spacing:.18em; text-transform:uppercase; }
+
+    .grid{ display:grid; gap:18px; grid-template-columns:1fr; }
+    .card{ background:var(--surface); border:1.5px solid var(--border); border-radius:calc(var(--radius) + 6px); padding:18px; box-shadow:var(--shadow), inset 0 0 0 4px hsl(0 0% 100% / .6); }
+
+    .muted{ color:var(--muted); }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+    /* Generator */
+    .gen-panel{ display:grid; gap:10px; }
+    .gen-panel textarea{ width:100%; min-height:140px; border:1px solid var(--border); border-radius:12px; padding:10px; background:var(--surface); color:var(--text); }
+
+    /* Flashcard deck */
+    .deck-wrap{ display:grid; gap:16px; }
+   
+    .cardBox{
+      position: relative;
+      width: 100%;
+      min-height: 240px;
+      border:1.5px solid var(--border);
+      border-radius: 24px;
+      background:var(--surface);
+      box-shadow:var(--shadow);
+      display:grid; place-items:center;
+      cursor:pointer;
+      overflow:hidden;
+    }
+    .faceText{ 
+      max-width: 90ch; 
+      font-size:1.05rem; 
+      line-height:1.5; 
+      padding:22px; 
+      transition: opacity .18s ease;
+    }
+    .hidden{ opacity:0; pointer-events:none; position:absolute; }
+    .visible{ opacity:1; }
+
+    .controls{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .group{ display:flex; gap:10px; flex-wrap:wrap; }
+    .pill{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:.85rem; border:1px solid var(--border); background: hsl(212 100% 50% / .10); }
+    .hard{ background: hsl(12 90% 50% / .12); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a class="brand" href="index.html" aria-label="Lectra Home"><span class="logo" aria-hidden="true"></span><span>Lectra</span></a>
+      <nav aria-label="Primary">
+        <ul>
+          <li><a href="index.html#lab">Study Lab</a></li>
+          <li><button id="themeToggle" class="btn btn-ghost" aria-pressed="false">🌙 Dark</button></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">Study Mode</div>
+          <h1>Flashcards</h1>
+        </div>
+        <a class="btn" href="index.html#lab">← Back</a>
+      </div>
+
+      <div class="grid">
+        <!-- Generator (visible first; deck hidden until generated) -->
+        <section id="genSection" class="card">
+          <h3 style="margin:0 0 8px">Generate a Flashcard Deck</h3>
+          <div class="gen-panel">
+            <textarea id="studyText" placeholder="This is the note text. We’ll try to prefill from your selected note."></textarea>
+            <div class="row">
+              <div class="field">Cards
+                <input id="count" type="number" min="5" max="80" value="20" style="width:90px; padding:6px 8px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text)">
+              </div>
+              <button id="genBtn" class="btn btn-primary" type="button">Generate Deck</button>
+              <span id="genMsg" class="muted"></span>
+            </div>
+            <p class="muted" id="noteHint" style="margin:6px 0 0"></p>
+          </div>
+        </section>
+
+        <!-- Deck -->
+        <section id="deckSection" class="card" style="display:none">
+          <div class="deck-wrap">
+            <div class="controls">
+              <div class="group">
+                <span class="pill">Card <strong id="pos">0</strong>/<span id="total">0</span></span>
+                <span class="pill hard">Hard: <strong id="hardCount">0</strong></span>
+              </div>
+              <div class="group">
+                <button id="prevBtn" class="btn" type="button">Prev</button>
+                <button id="flipBtn" class="btn btn-primary" type="button">Show Answer</button>
+                <button id="nextBtn" class="btn" type="button">Next</button>
+                <button id="shuffleBtn" class="btn" type="button">Shuffle</button>
+                <button id="hardBtn" class="btn" type="button">Mark Hard</button>
+              </div>
+            </div>
+
+            <div class="stage">
+              <div id="cardBox" class="cardBox" aria-live="polite">
+                <div id="front" class="faceText visible"></div>
+                <div id="back"  class="faceText hidden"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>
+    <div class="container"><small>© <span id="year"></span> Lectra</small></div>
+  </footer>
+
+  <script>
+    // Footer year
+    (function(){ var y=document.getElementById('year'); if(y) y.textContent = new Date().getFullYear(); })();
+
+    // Theme toggle
+    (function(){
+      var STORAGE_KEY='lectra.theme';
+      function apply(theme){
+        var btn=document.getElementById('themeToggle');
+        if(theme==='dark'){
+          document.documentElement.setAttribute('data-theme','dark');
+          if(btn){ btn.textContent='🌞 Light'; btn.setAttribute('aria-pressed','true'); }
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+          if(btn){ btn.textContent='🌙 Dark'; btn.setAttribute('aria-pressed','false'); }
+        }
+      }
+      function initial(){
+        try{ var saved=localStorage.getItem(STORAGE_KEY); if(saved==='light'||saved==='dark') return saved; }catch(e){}
+        return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
+      }
+      var current=initial(); apply(current);
+      var btn=document.getElementById('themeToggle');
+      if(btn){
+        btn.addEventListener('click', function(){
+          current=(document.documentElement.getAttribute('data-theme')==='dark')?'light':'dark';
+          try{ localStorage.setItem(STORAGE_KEY,current);}catch(e){}
+          apply(current);
+        });
+      }
+    })();
+
+    // ===================== CONFIG =====================
+    const API_BASE = 'http://localhost:3001';
+
+    // ===================== STALE PROTECTION =================
+    try { localStorage.removeItem('lectra.cards'); } catch(_) {}
+
+    // ===================== ELEMENTS ========================
+    const genSection  = document.getElementById('genSection');
+    const deckSection = document.getElementById('deckSection');
+    const studyTextEl = document.getElementById('studyText');
+    const countEl     = document.getElementById('count');
+    const genBtn      = document.getElementById('genBtn');
+    const genMsg      = document.getElementById('genMsg');
+    const noteHint    = document.getElementById('noteHint');
+
+    const posEl   = document.getElementById('pos');
+    const totalEl = document.getElementById('total');
+    const hardCountEl = document.getElementById('hardCount');
+
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const flipBtn = document.getElementById('flipBtn');
+    const shuffleBtn = document.getElementById('shuffleBtn');
+    const hardBtn = document.getElementById('hardBtn');
+
+    const cardBox = document.getElementById('cardBox');
+    const frontEl = document.getElementById('front');
+    const backEl  = document.getElementById('back');
+
+    // ===================== PREFILL / GUARD ==================
+    try {
+      const pref = localStorage.getItem('lectra.studyText');
+      if (pref) {
+        studyTextEl.value = pref;
+        noteHint.textContent = 'Loaded note text from your selection.';
+      } else {
+        noteHint.textContent = 'Tip: Select a note in Study Lab to prefill this box automatically, or paste text here.';
+      }
+    } catch(_) {}
+
+    // ===================== STATE ===========================
+    let cards = [];           // [{front, back}]
+    let idx = 0;
+    let showingBack = false;
+    const hard = new Set();   // indices marked hard
+
+    // ===================== RENDER ==========================
+    function render(){
+      if (!cards.length){
+        deckSection.style.display = 'none';
+        genSection.style.display  = 'block';
+        return;
+      }
+      genSection.style.display  = 'none';
+      deckSection.style.display = 'block';
+
+      const c = cards[idx];
+      posEl.textContent   = (idx + 1).toString();
+      totalEl.textContent = cards.length.toString();
+      hardCountEl.textContent = hard.size.toString();
+
+      frontEl.textContent = c.front || '—';
+      backEl .textContent = c.back  || '—';
+
+      // show front/back with fade, not 3D rotation
+      if (showingBack) {
+        frontEl.classList.remove('visible'); frontEl.classList.add('hidden');
+        backEl.classList.remove('hidden');   backEl.classList.add('visible');
+        flipBtn.textContent = 'Show Question';
+      } else {
+        backEl.classList.remove('visible');  backEl.classList.add('hidden');
+        frontEl.classList.remove('hidden');  frontEl.classList.add('visible');
+        flipBtn.textContent = 'Show Answer';
+      }
+    }
+
+    // ===================== CONTROLS ========================
+    function flip(){ showingBack = !showingBack; render(); }
+    function next(){ if (idx < cards.length-1){ idx++; showingBack=false; render(); } }
+    function prev(){ if (idx > 0){ idx--; showingBack=false; render(); } }
+    function shuffle(){
+      for (let i = cards.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [cards[i], cards[j]] = [cards[j], cards[i]];
+      }
+      idx = 0; showingBack=false; render();
+    }
+    function toggleHard(){
+      if (hard.has(idx)) hard.delete(idx); else hard.add(idx);
+      render();
+    }
+
+    cardBox.addEventListener('click', flip);
+    flipBtn.addEventListener('click', flip);
+    nextBtn.addEventListener('click', next);
+    prevBtn.addEventListener('click', prev);
+    shuffleBtn.addEventListener('click', shuffle);
+    hardBtn.addEventListener('click', toggleHard);
+
+    // ===================== BACKEND CALL ====================
+    async function callBackendGenerateCards(text, count){
+      const r = await fetch(`${API_BASE}/api/generate-flashcards`, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ text, count })
+      });
+      if(!r.ok) return null;
+      const data = await r.json();
+      return Array.isArray(data.cards) ? data.cards : null;
+    }
+
+    // Normalize & de-duplicate; also trim empties
+    function normalizeCards(list){
+      const out = [];
+      const seen = new Set();
+      for (const c of list || []){
+        const front = (c?.front || '').trim();
+        const back  = (c?.back  || '').trim();
+        if (!front || !back) continue;
+        const key = front.toLowerCase() + '␞' + back.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ front, back });
+      }
+      return out;
+    }
+
+    // ===================== GENERATE with TOP-UP =================
+    async function generateDeckExactCount(text, targetCount){
+      genMsg.textContent = 'Generating…';
+      let all = [];
+      let remaining = targetCount;
+      let attempts = 0;
+
+      while (remaining > 0 && attempts < 3){
+        attempts++;
+        const got = await callBackendGenerateCards(text, remaining);
+        if (!got) break;
+
+        const merged = normalizeCards([...all, ...got]);
+        const delta = merged.length - all.length;
+        all = merged;
+        remaining = Math.max(0, targetCount - all.length);
+
+        // If model returned nothing new, bail early
+        if (delta === 0) break;
+      }
+
+      if (all.length < targetCount){
+        genMsg.textContent = `Generated ${all.length}/${targetCount}. Add more note text for a bigger deck.`;
+      } else {
+        genMsg.textContent = 'Done!';
+      }
+      return all.slice(0, targetCount);
+    }
+
+    // ===================== GENERATE HANDLER =================
+    genBtn.addEventListener('click', async ()=>{
+      const text = (studyTextEl.value || '').trim();
+      if (!text){ genMsg.textContent = 'Paste study text first (or select a note in Study Lab).'; return; }
+
+      const target = Math.max(5, Math.min(80, parseInt(countEl.value || '20', 10)));
+
+      const generated = await generateDeckExactCount(text, target);
+      if (!generated || !generated.length){ genMsg.textContent = 'Failed to generate. Check backend or provide more text.'; return; }
+
+      cards = generated;
+      idx = 0; showingBack = false;
+      hard.clear();
+
+      try { localStorage.setItem('lectra.cards', JSON.stringify(cards)); } catch(_) {}
+
+      render();
+    });
+
+    // ===================== INIT ============================
+    render();
+  </script>
+</body>
+</html>

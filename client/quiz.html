@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lectra — Quiz</title>
+  <meta name="description" content="Lectra Quiz Mode — generate on demand, no stale data, lock-after-first-click, Finish only when all answered." />
+  <link rel="icon" href="data:,">
+  <style>
+    :root{
+      --bg:           hsl(252 58% 98%);
+      --text:         hsl(230 35% 14%);
+      --muted:        hsl(231 14% 44%);
+      --border:       hsl(230 22% 88%);
+      --accent:       hsl(212 100% 50%);
+      --accent-700:   hsl(212 100% 40%);
+      --glow:         hsl(152 72% 42%);
+      --surface:      hsl(0 0% 100%);
+      --radius:       16px;
+      --shadow:       0 10px 30px hsl(230 30% 10% / 0.08);
+      color-scheme: light dark;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:hsl(222 28% 8%); --text:hsl(210 20% 96%);
+        --muted:hsl(220 10% 70%); --border:hsl(220 14% 18%);
+        --surface:hsl(222 28% 10%); --shadow:0 10px 30px hsl(220 40% 2% / 0.6);
+      }
+    }
+    :root[data-theme="dark"]{
+      --bg:hsl(222 28% 8%); --text:hsl(210 20% 96%);
+      --muted:hsl(220 10% 70%); --border:hsl(220 14% 18%);
+      --surface:hsl(222 28% 10%); --shadow:0 10px 30px hsl(220 40% 2% / 0.6);
+      color-scheme:dark;
+    }
+
+    *,*::before,*::after{ box-sizing:border-box; }
+    body{ margin:0; font:16px/1.6 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; color:var(--text); background:var(--bg); }
+    a{ color:inherit; text-decoration:none; }
+    .container{ width:min(1100px,92%); margin-inline:auto; }
+
+    header{ position:sticky; top:0; z-index:10; backdrop-filter: blur(8px); background: color-mix(in oklab, var(--bg) 70%, transparent); border-bottom:1px solid var(--border); }
+    .nav{ display:flex; align-items:center; justify-content:space-between; padding:12px 0; }
+    .brand{ display:flex; align-items:center; gap:10px; font-weight:700; }
+    .logo{ width:40px; height:40px; background:var(--accent); clip-path: polygon(25% 6.7%,75% 6.7%,100% 50%,75% 93.3%,25% 93.3%,0% 50%); border-radius:8px; box-shadow:var(--shadow); position:relative; }
+    .logo::after{ content:""; position:absolute; inset:0; border-radius:inherit; border:2px solid hsl(0 0% 100% /.45); }
+    .nav ul{ list-style:none; display:flex; gap:clamp(14px,3vw,28px); margin:0; padding:0; }
+    .btn{ display:inline-flex; align-items:center; justify-content:center; height:40px; padding:0 14px; border-radius:999px; border:1px solid var(--border); background:var(--surface); font-weight:600; cursor:pointer; }
+    .btn[disabled]{ opacity:.6; cursor:not-allowed; }
+    .btn-primary{ background:var(--accent); border-color:var(--accent-700); color:#fff; box-shadow:var(--shadow); }
+    .btn-ghost{ background:transparent; }
+
+    main{ padding-block: clamp(44px,6vw,72px); }
+    .page-head{ display:flex; align-items:end; justify-content:space-between; gap:12px; margin-bottom:16px; }
+    h1{ font-size: clamp(1.8rem, 4.4vw, 2.4rem); line-height:1.15; margin:0; }
+    .eyebrow{ font-size:.9rem; color:var(--muted); letter-spacing:.18em; text-transform:uppercase; }
+
+    .grid{ display:grid; gap:18px; grid-template-columns:1fr; }
+    .card{ background:var(--surface); border:1.5px solid var(--border); border-radius:calc(var(--radius) + 6px); padding:18px; box-shadow:var(--shadow), inset 0 0 0 4px hsl(0 0% 100% / .6); }
+
+    /* Quiz layout */
+    .quiz-stage{ display:grid; gap:16px; }
+    .quiz-meta{ display:flex; gap:8px; justify-content:space-between; align-items:center; }
+    .pill{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:.8rem; background:hsl(212 100% 50% / .12); border:1px solid var(--border); }
+    .pill.alt{ background:hsl(48 100% 55% / .14); }
+    .question{ font-size:1.1rem; margin:0; }
+    .answers{ display:grid; gap:10px; }
+    .answer{
+      border:1px solid var(--border); background:var(--surface); padding:12px 14px; border-radius:14px; text-align:left; cursor:pointer;
+      transition: box-shadow .15s ease, transform .02s ease, border-color .15s ease, background-color .15s ease;
+    }
+    .answer:hover{ border-color:var(--accent); box-shadow: 0 0 0 4px hsl(212 100% 50% / .14); }
+    .answer[disabled]{ opacity:.7; cursor:not-allowed; }
+    .answer.correct{ background: color-mix(in oklab, var(--glow) 12%, var(--surface)); border-color: color-mix(in oklab, var(--glow) 50%, var(--border)); }
+    .answer.wrong{ background: color-mix(in oklab, crimson 10%, var(--surface)); border-color: color-mix(in oklab, crimson 50%, var(--border)); }
+
+    .quiz-actions{ display:flex; gap:10px; justify-content:space-between; align-items:center; }
+    .muted{ color:var(--muted); }
+
+    /* Generator */
+    .gen-panel{ display:grid; gap:10px; }
+    .gen-panel textarea{ width:100%; min-height:140px; border:1px solid var(--border); border-radius:12px; padding:10px; background:var(--surface); color:var(--text); }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .row .field{ display:flex; gap:8px; align-items:center; }
+    footer{ border-top:1px solid var(--border); padding:20px 0 60px; color:var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a class="brand" href="index.html" aria-label="Lectra Home"><span class="logo" aria-hidden="true"></span><span>Lectra</span></a>
+      <nav aria-label="Primary">
+        <ul>
+          <li><a href="index.html#lab">Study Lab</a></li>
+          <li><button id="themeToggle" class="btn btn-ghost" aria-pressed="false">🌙 Dark</button></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">Study Mode</div>
+          <h1>Quiz</h1>
+        </div>
+        <a class="btn" href="index.html#lab">← Back</a>
+      </div>
+
+      <div class="grid">
+        <!-- Generator section (always shown first) -->
+        <section id="genSection" class="card">
+          <h3 style="margin:0 0 8px">Generate a Quiz</h3>
+          <div class="gen-panel">
+            <textarea id="studyText" placeholder="This is the note text. We’ll try to prefill from your selected note."></textarea>
+            <div class="row">
+              <div class="field">Count <input id="qCount" type="number" min="3" max="20" value="8" style="width:80px; padding:6px 8px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text)"></div>
+              <div class="field">Difficulty
+                <select id="difficulty" style="padding:6px 8px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text)">
+                  <option>Easy</option><option selected>Medium</option><option>Hard</option>
+                </select>
+              </div>
+              <button id="genBtn" class="btn btn-primary" type="button">Generate Quiz</button>
+              <span id="genMsg" class="muted"></span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Quiz stage (hidden until a quiz is generated) -->
+        <section id="quizSection" class="card" aria-live="polite" style="display:none">
+          <div class="quiz-stage">
+            <div class="quiz-meta">
+              <span class="pill">Q <strong id="qnum">0</strong>/<span id="qtotal">0</span></span>
+              <span class="pill alt">Score: <strong id="score">0</strong></span>
+            </div>
+            <h3 id="question" class="question">Loading…</h3>
+            <div id="answers" class="answers"></div>
+            <div id="explain" class="muted" style="display:none; margin-top:6px;"></div>
+            <div class="quiz-actions">
+              <button id="prevBtn" class="btn" type="button">Previous</button>
+              <div id="progress" class="muted"></div>
+              <button id="nextBtn" class="btn btn-primary" type="button">Next</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="container"><small>© <span id="year"></span> Lectra</small></div>
+  </footer>
+
+  <script>
+    // Footer year
+    (function(){ var y=document.getElementById('year'); if(y) y.textContent = new Date().getFullYear(); })();
+
+    // Theme toggle
+    (function(){
+      var STORAGE_KEY='lectra.theme';
+      function apply(theme){
+        var btn=document.getElementById('themeToggle');
+        if(theme==='dark'){
+          document.documentElement.setAttribute('data-theme','dark');
+          if(btn){ btn.textContent='🌞 Light'; btn.setAttribute('aria-pressed','true'); }
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+          if(btn){ btn.textContent='🌙 Dark'; btn.setAttribute('aria-pressed','false'); }
+        }
+      }
+      function initial(){
+        try{ var saved=localStorage.getItem(STORAGE_KEY); if(saved==='light'||saved==='dark') return saved; }catch(e){}
+        return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
+      }
+      var current=initial(); apply(current);
+      var btn=document.getElementById('themeToggle');
+      if(btn){
+        btn.addEventListener('click', function(){
+          current=(document.documentElement.getAttribute('data-theme')==='dark')?'light':'dark';
+          try{ localStorage.setItem(STORAGE_KEY,current);}catch(e){}
+          apply(current);
+        });
+      }
+    })();
+
+    // Config
+    const API_BASE = 'http://localhost:3001';
+
+    // ======= State & Elements =======
+    const genSection   = document.getElementById('genSection');
+    const quizSection  = document.getElementById('quizSection');
+    const studyTextEl  = document.getElementById('studyText');
+    const genBtn       = document.getElementById('genBtn');
+    const genMsg       = document.getElementById('genMsg');
+    const qCountEl     = document.getElementById('qCount');
+    const difficultyEl = document.getElementById('difficulty');
+
+    const qnumEl     = document.getElementById('qnum');
+    const qtotalEl   = document.getElementById('qtotal');
+    const scoreEl    = document.getElementById('score');
+    const questionEl = document.getElementById('question');
+    const answersEl  = document.getElementById('answers');
+    const explainEl  = document.getElementById('explain');
+    const progressEl = document.getElementById('progress');
+    const prevBtn    = document.getElementById('prevBtn');
+    const nextBtn    = document.getElementById('nextBtn');
+
+    // Never show stale quiz
+    try { localStorage.removeItem('lectra.quiz'); } catch(_) {}
+
+    // Prefill study text from selection if available
+    try {
+      const pref = localStorage.getItem('lectra.studyText');
+      if (pref) studyTextEl.value = pref;
+    } catch(_) {}
+
+    let quiz = [];             // populated after generation
+    let idx = 0;
+    let answers = [];          // selected indices
+    let locked  = [];          // lock each question after first click
+
+    function correctCount() {
+      return answers.reduce((acc, a, i) => (a !== null && a === quiz[i]?.correctIndex) ? acc + 1 : acc, 0);
+    }
+    function allAnswered(){ return quiz.length>0 && answers.length===quiz.length && answers.every(a => a !== null); }
+
+    function render() {
+      if (!quiz.length) {
+        quizSection.style.display = 'none';
+        genSection.style.display  = 'block';
+        return;
+      }
+
+      genSection.style.display  = 'none';
+      quizSection.style.display = 'block';
+
+      const q = quiz[idx];
+      qnumEl.textContent   = (idx + 1).toString();
+      qtotalEl.textContent = quiz.length.toString();
+      scoreEl.textContent  = correctCount().toString();
+      questionEl.textContent = q.question || '—';
+      progressEl.textContent = `Question ${idx+1} of ${quiz.length}`;
+
+      // Build answers
+      answersEl.innerHTML = q.choices.map((c,i)=>`
+        <button class="answer" data-i="${i}" type="button">${c}</button>
+      `).join('');
+
+      const btns = [...answersEl.querySelectorAll('.answer')];
+
+      // If already answered, paint + lock all
+      if (answers[idx] !== null) {
+        btns.forEach((b, bi)=>{
+          b.classList.remove('correct','wrong');
+          if (bi === q.correctIndex) b.classList.add('correct');
+          if (bi === answers[idx] && answers[idx] !== q.correctIndex) b.classList.add('wrong');
+          b.disabled = true;
+        });
+        explainEl.style.display = 'block';
+        explainEl.innerHTML = `<strong>Explanation:</strong> ${q.explanation || '—'}`;
+        locked[idx] = true;
+      } else {
+        explainEl.style.display = 'none';
+        explainEl.textContent = '';
+      }
+
+      // First-click handler -> choose once, then lock
+      btns.forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          if (locked[idx]) return;
+
+          const sel = +btn.dataset.i;
+          answers[idx] = sel;
+
+          btns.forEach((b, bi)=>{
+            b.classList.remove('correct','wrong');
+            if (bi === q.correctIndex) b.classList.add('correct');
+            if (bi === sel && sel !== q.correctIndex) b.classList.add('wrong');
+            b.disabled = true; // lock all after first click
+          });
+
+          explainEl.style.display = 'block';
+          explainEl.innerHTML = `<strong>Explanation:</strong> ${q.explanation || '—'}`;
+
+          locked[idx] = true;
+          scoreEl.textContent = correctCount().toString();
+
+          // If on last question, update Finish enabled state
+          if (idx === quiz.length - 1) {
+            nextBtn.disabled = !allAnswered();
+            nextBtn.title = nextBtn.disabled ? 'Answer all questions to finish' : '';
+          }
+        });
+      });
+
+      // Prev / Next / Finish logic
+      prevBtn.disabled = idx === 0;
+
+      const last = (idx === quiz.length - 1);
+      nextBtn.textContent = last ? 'Finish' : 'Next';
+
+      if (last) {
+        nextBtn.disabled = !allAnswered();
+        nextBtn.title = nextBtn.disabled ? 'Answer all questions to finish' : '';
+      } else {
+        nextBtn.disabled = false;
+        nextBtn.title = '';
+      }
+    }
+
+    // Navigation
+    prevBtn.addEventListener('click', ()=>{ if (idx>0){ idx--; render(); } });
+    nextBtn.addEventListener('click', ()=>{
+      if (!quiz.length) return;
+      const last = (idx === quiz.length - 1);
+
+      if (!last) {
+        idx++; render(); return;
+      }
+
+      // Last question → only allow if all answered
+      if (!allAnswered()) {
+        nextBtn.disabled = true;
+        nextBtn.title = 'Answer all questions to finish';
+        return;
+      }
+
+      alert('Quiz complete! 🎉');
+    });
+
+    // Backend call (only from here)
+    async function callBackendGenerateQuiz(text, count, difficulty){
+      genMsg.textContent = 'Generating…';
+      const r = await fetch(`${API_BASE}/api/generate-quiz`, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ text, count, difficulty, qtype:'Multiple Choice' })
+      });
+      if(!r.ok){
+        genMsg.textContent = 'Failed to generate. Check backend.';
+        return null;
+      }
+      const data = await r.json();
+      return Array.isArray(data.quiz) ? data.quiz : null;
+    }
+
+    // Generate button
+    genBtn.addEventListener('click', async ()=>{
+      const text = (studyTextEl.value || '').trim();
+      if (!text){ genMsg.textContent = 'Paste study text first.'; return; }
+      const count = Math.max(3, Math.min(20, parseInt(qCountEl.value || '8', 10)));
+      const difficulty = difficultyEl.value || 'Medium';
+
+      const generated = await callBackendGenerateQuiz(text, count, difficulty);
+      if (!generated){ return; }
+
+      quiz = generated;
+      answers = Array(quiz.length).fill(null);
+      locked  = Array(quiz.length).fill(false);
+      idx = 0;
+
+      // Save the *new* quiz (optional, useful for reload)
+      try { localStorage.setItem('lectra.quiz', JSON.stringify(quiz)); } catch(_) {}
+
+      genMsg.textContent = 'Done!';
+      render();
+    });
+
+    // First render (generator visible; quiz hidden)
+    render();
+  </script>
+</body>
+</html>

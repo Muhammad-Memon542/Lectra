@@ -999,6 +999,41 @@ footer{ border-top:1px solid var(--border); padding:20px 0 60px; color:var(--mut
       }).catch(function(err){
         alert('Could not list notes: ' + err.message);
       });
+      const quizLink  = document.querySelector('a[href="quiz.html"]');
+      const cardsLink = document.querySelector('a[href="flashcards.html"]');
+      const notesSel  = document.getElementById('notesSelect');
+
+      // Helpers to extract study text (from currently shown Markdown or a PDF hint).
+      function currentMarkdownText(){
+        const mdCtn = document.getElementById('mdContainer');
+        const md    = document.getElementById('mdContent');
+        if (!mdCtn || mdCtn.hidden || !md) return '';
+        return (md.innerText || '').trim();
+      }
+      function currentPdfHint(){
+        const val = notesSel && notesSel.value ? notesSel.value : '';
+        return val ? `PDF selected: ${val}. Extract key ideas and generate study material.` : '';
+      }
+
+      function ensureNoteSelected(e){
+        if (!notesSel || !notesSel.value){
+          e.preventDefault();
+          alert('Pick a note from the list first.');
+          return false;
+        }
+        // Save study text for quiz.html / flashcards.html
+        const text = currentMarkdownText() || currentPdfHint();
+        if (!text){
+          e.preventDefault();
+          alert('Open a Markdown or PDF note first.');
+          return false;
+        }
+        try { localStorage.setItem('lectra.studyText', text); } catch (_) {}
+        return true;
+      }
+
+      if (quizLink)  quizLink.addEventListener('click',  (e)=>{ ensureNoteSelected(e); });
+      if (cardsLink) cardsLink.addEventListener('click', (e)=>{ ensureNoteSelected(e); });
     })();
   </script>
 
