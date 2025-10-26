@@ -33,7 +33,7 @@ function App() {
       applyTheme(savedTheme);
     } else {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const initialTheme = prefersDark ? 'dark' : 'light';
+      const initialTheme: 'light' | 'dark' = prefersDark ? 'dark' : 'light';
       setTheme(initialTheme);
       applyTheme(initialTheme);
     }
@@ -48,7 +48,7 @@ function App() {
   };
 
   const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
+    const newTheme: 'light' | 'dark' = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
     applyTheme(newTheme);
     localStorage.setItem('lectra_theme', newTheme);
@@ -58,6 +58,7 @@ function App() {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition =
         (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
@@ -99,6 +100,7 @@ function App() {
   const startRecording = async () => {
     try {
       setStatus('🔹 Requesting camera access...');
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1920 },
@@ -125,7 +127,8 @@ function App() {
       }
 
       const data = await response.json();
-      const newSessionId = data.sessionId;
+      const newSessionId = data.sessionId as string;
+
       setSessionId(newSessionId);
       setIsRecording(true);
       setStatus('🎥 RECORDING NOW - Capturing frames every 5 seconds...');
@@ -142,11 +145,13 @@ function App() {
         await captureFrame(newSessionId);
       }, 5000);
 
+      // Stop if the camera track ends (user disables camera)
       stream.getTracks()[0].addEventListener('ended', () => {
         stopRecording();
       });
     } catch (error: any) {
       setIsRecording(false);
+
       if (error.name === 'NotAllowedError') {
         setStatus('❌ PERMISSION DENIED - Please allow camera & microphone');
       } else if (error.name === 'NotFoundError') {
@@ -154,6 +159,7 @@ function App() {
       } else if (error.name === 'NotReadableError') {
         setStatus('❌ Camera is in use - close other apps');
       } else {
+        // ✅ fixed: template string
         setStatus(`❌ Error: ${error.message}`);
       }
     }
@@ -161,12 +167,13 @@ function App() {
 
   const captureFrame = async (currentSessionId: string) => {
     if (!videoRef.current || videoRef.current.videoWidth === 0) return;
+
     try {
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
-      const ctx = canvas.getContext('2d');
 
+      const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
       ctx.drawImage(videoRef.current, 0, 0);
@@ -186,14 +193,13 @@ function App() {
               method: 'POST',
               body: formData,
             });
-            const elapsed = Math.floor(
-              (Date.now() - parseInt(currentSessionId)) / 1000
-            );
+
+            const elapsed = Math.floor((Date.now() - parseInt(currentSessionId)) / 1000);
             const transcriptPreview =
               currentTranscriptRef.current.slice(-40) || '(listening...)';
-            setStatus(
-              `🎥 Recording... ${elapsed}s | Speech: "${transcriptPreview}"`
-            );
+
+            // ✅ fixed: template string
+            setStatus(`🎥 Recording... ${elapsed}s | Speech: "${transcriptPreview}"`);
           } catch (error) {
             console.error('Error uploading frame:', error);
           }
@@ -210,9 +216,11 @@ function App() {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
     }
+
     if (captureIntervalRef.current) {
       clearInterval(captureIntervalRef.current);
     }
+
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
@@ -220,6 +228,7 @@ function App() {
         console.log('Error stopping recognition:', e);
       }
     }
+
     if (sessionId) {
       await fetch('http://localhost:3001/api/end-recording', {
         method: 'POST',
@@ -227,14 +236,17 @@ function App() {
         body: JSON.stringify({ sessionId }),
       });
     }
+
     setIsRecording(false);
     setStatus('✅ Recording stopped! Click "Generate Lecture Notes" to analyze.');
   };
 
   const generateNotes = async () => {
     if (!sessionId) return;
+
     setIsGenerating(true);
     setStatus('🤖 Analyzing with Gemini AI... Extracting text from images & processing speech...');
+
     try {
       const response = await fetch('http://localhost:3001/api/generate-notes', {
         method: 'POST',
@@ -245,6 +257,7 @@ function App() {
       if (!response.ok) {
         throw new Error('Failed to generate notes');
       }
+
       const data = await response.json();
 
       if (data.notes) {
@@ -262,13 +275,16 @@ function App() {
 
   const downloadPDF = async () => {
     if (!notes || !sessionId) return;
+
     setStatus('📄 Creating PDF...');
+
     try {
       await fetch('http://localhost:3001/api/download-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes, sessionId }),
       });
+
       setStatus('✅ File downloaded.');
     } catch (error) {
       setStatus('❌ Error creating PDF');
@@ -284,36 +300,20 @@ function App() {
       <header className="App-header">
         <div className="header-top">
           <div>
-            {/* Single, theme-based logo — no title text */}
-            <div className="title-with-logo">
-              {theme === 'light' ? (
-                <img
-                  className="title-logo"
-                  src="/downloads/light.png"
-                  alt="Lectra logo (light)"
-                  width={120}
-                  height={28}
-                />
-              ) : (
-                <img
-                  className="title-logo"
-                  src="/downloads/dark.png"
-                  alt="Lectra logo (dark)"
-                  width={120}
-                  height={28}
-                />
-              )}
-            </div>
-
+            <h1> Lectra </h1>
             <p className="subtitle">AI-Powered Classroom Lecture Note Generator</p>
           </div>
 
           <div className="header-user">
             <span className="user-badge">👤 {currentUser}</span>
+
             <button onClick={toggleTheme} className="theme-toggle" title="Toggle theme">
               {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
             </button>
-            <button onClick={handleLogout} className="btn-logout">Logout</button>
+
+            <button onClick={handleLogout} className="btn-logout">
+              Logout
+            </button>
           </div>
         </div>
 
@@ -328,13 +328,8 @@ function App() {
       <main className="container">
         <div className="video-section">
           <div className="video-label">🔹 Camera Preview (Classroom View)</div>
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className="video-preview"
-          />
+
+          <video ref={videoRef} autoPlay muted playsInline className="video-preview" />
 
           <div className="controls">
             {!isRecording ? (
@@ -348,11 +343,7 @@ function App() {
             )}
 
             {sessionId && !isRecording && !notes && (
-              <button
-                onClick={generateNotes}
-                disabled={isGenerating}
-                className="btn btn-success"
-              >
+              <button onClick={generateNotes} disabled={isGenerating} className="btn btn-success">
                 {isGenerating ? '⏳ Analyzing...' : '✨ Generate Lecture Notes'}
               </button>
             )}
@@ -371,12 +362,25 @@ function App() {
           <div className="info-box">
             <h3>💡 How to Use:</h3>
             <ol>
-              <li><strong>Position Camera:</strong> Point at whiteboard/projector</li>
-              <li><strong>Click Start:</strong> Camera turns on, frames captured every 5 seconds</li>
-              <li><strong>Microphone Records:</strong> Professor's speech captured automatically</li>
-              <li><strong>Click Stop:</strong> When lecture ends</li>
-              <li><strong>Generate Notes:</strong> Gemini extracts text from images + combines with speech</li>
-              <li><strong>Download PDF:</strong> Get your complete lecture notes</li>
+              <li>
+                <strong>Position Camera:</strong> Point at whiteboard/projector
+              </li>
+              <li>
+                <strong>Click Start:</strong> Camera turns on, frames captured every 5 seconds
+              </li>
+              <li>
+                <strong>Microphone Records:</strong> Professor&apos;s speech captured automatically
+              </li>
+              <li>
+                <strong>Click Stop:</strong> When lecture ends
+              </li>
+              <li>
+                <strong>Generate Notes:</strong> Gemini extracts text from images + combines with
+                speech
+              </li>
+              <li>
+                <strong>Download PDF:</strong> Get your complete lecture notes
+              </li>
             </ol>
           </div>
         </div>
@@ -385,7 +389,7 @@ function App() {
           <div className="notes-section">
             <h2>📝 Generated Lecture Notes</h2>
             <p className="notes-subtitle">
-              Extracted from classroom board/slides + professor's speech
+              Extracted from classroom board/slides + professor&apos;s speech
             </p>
             <div className="notes-content">
               <pre>{notes}</pre>
