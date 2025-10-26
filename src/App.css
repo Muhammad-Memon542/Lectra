@@ -328,4 +328,21 @@
       padding: 0 1rem;
     }
   }
+  .auth0-floating-badge {
+    position: fixed;
+    bottom: 2rem;
+    left: 2rem;
+    z-index: 1000;
+    pointer-events: none; /* So it won't block mouse */
+  }
+  
+  .auth0-badge {
+    background: #764ba2 !important;
+    box-shadow: 0 2px 8px rgba(235, 84, 36, 0.3) !important;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff !important;
+    pointer-events: all;
+  }
+  
   
