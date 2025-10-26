@@ -82,21 +82,14 @@ img{ max-width:100%; display:block; }
 a{ color:inherit; text-decoration:none; }
 .container{ width:min(1100px, 92%); margin-inline:auto; }
 
-/* ===== BOLD Dynamic wallpaper =====
-   - Layered animated gradients (radial + conic)
-   - Floating color orbs with blur & screen blend
-   - Film grain
-   - Respects prefers-reduced-motion
-*/
+/* ===== BOLD Dynamic wallpaper ===== */
 body::before{
   content:"";
   position: fixed; inset: 0; z-index:-4;
   background:
-    /* juicy color pools */
     radial-gradient(1600px 900px at 10% 5%, color-mix(in oklab, var(--accent) 35%, white 10%) 0%, transparent 60%),
     radial-gradient(1400px 800px at 90% 30%, color-mix(in oklab, var(--glow) 38%, white 6%) 0%, transparent 65%),
     radial-gradient(1200px 700px at 50% 95%, color-mix(in oklab, var(--citrus) 34%, white 8%) 0%, transparent 70%),
-    /* subtle angular sweep */
     conic-gradient(from 210deg at 50% 50%,
       color-mix(in oklab, var(--bg1) 65%, transparent) 0 25%,
       transparent 25% 50%,
@@ -163,12 +156,16 @@ body::after{
 header{ position:sticky; top:0; z-index:10; backdrop-filter: blur(8px); background: color-mix(in oklab, var(--bg) 70%, transparent); border-bottom:1px solid var(--border); }
 .nav{ display:flex; align-items:center; justify-content:space-between; padding:12px 0; }
 .brand{ display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.3px; }
-.logo{ width:40px; height:40px; position:relative; background:var(--accent);
-  -webkit-clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
-          clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0% 50%);
-  box-shadow: var(--shadow);
+
+/* NEW: real image logo (replaces blue hexagon) */
+.brand-logo{
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  display:block;
+  border-radius: 8px; /* optional, remove if you want sharp corners */
 }
-.logo::after{ content:""; position:absolute; inset:0; border-radius:inherit; border:2px solid hsl(0 0% 100% / .45); opacity:.9; }
+
 .nav a{ opacity:.9; } .nav a:hover{ opacity:1; }
 .nav ul{ margin:0; padding:0; list-style:none; display:flex; gap: clamp(14px, 3vw, 28px); }
 
@@ -185,7 +182,6 @@ h1{ font-size: clamp(2rem, 5vw, 3.2rem); line-height:1.1; margin:8px 0 14px; }
 .btn{ position:relative; display:inline-flex; align-items:center; justify-content:center; gap:8px; height:44px; padding:0 18px; border-radius:999px; font-weight:600; border:1px solid transparent; transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease; overflow:hidden; }
 .btn-primary{ background:var(--accent); border:2px solid var(--accent-700); color:#fff; box-shadow: var(--shadow); }
 .btn-primary:hover{ transform: translateY(-1px); filter: saturate(1.05) brightness(1.02); }
-/* Shine sweep on primary buttons */
 .btn-primary::before{
   content:""; position:absolute; inset:-40% -60% auto auto; height:200%; width:40%;
   transform: rotate(15deg) translateX(-120%);
@@ -408,6 +404,9 @@ footer{ border-top:1px solid var(--border); padding:20px 0 60px; color:var(--mut
 .read-aloud-btn[data-state="loading"] .ico-spinner { display:inline; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
   </style>
+  <!-- Optional: Preload both logos for instant swap -->
+  <link rel="preload" as="image" href="dark.png">
+  <link rel="preload" as="image" href="light.png">
 </head>
 <body>
   <!-- Bold wallpaper floating orbs -->
@@ -420,7 +419,8 @@ footer{ border-top:1px solid var(--border); padding:20px 0 60px; color:var(--mut
   <header>
     <div class="container nav">
       <a class="brand" href="#home" aria-label="Lectra Home">
-        <span class="logo" aria-hidden="true" title="Lectra"></span>
+        <!-- REPLACED: hexagon span -> image that swaps with theme -->
+        <img id="brandLogo" class="brand-logo" src="dark.png" alt="Lectra logo" />
         <span>Lectra</span>
       </a>
       <nav aria-label="Primary">
@@ -441,8 +441,8 @@ footer{ border-top:1px solid var(--border); padding:20px 0 60px; color:var(--mut
       <div class="container wrap">
         <div>
           <p class="eyebrow">Lectra — Learn at lightening speed</p>
-          <h1>Accessible notes up top. Fun study games below.</h1>
-          <p class="lead">Design-first UI for an accessibility note service. Take crisp notes, then reinforce with a Quiz or Flashcards—no JS game logic here, just vibrant, accessible components ready for you to wire up.</p>
+          <h1>We help you capture clean notes and turn them into quick quizzes and flashcards!</h1>
+          <p class="lead">Lectra is built on the belief that great learning tools should be accessible to everyone, not just a few. We use thoughtful design and responsible tech to lower barriers, amplify voices, and move education toward a more equitable future for all.</p>
           <div class="cta">
             <a class="btn btn-primary magnet" href="#notes">Go to Notes</a>
             <a class="btn btn-outline" href="#lab">Open Study Lab</a>
@@ -451,9 +451,10 @@ footer{ border-top:1px solid var(--border); padding:20px 0 60px; color:var(--mut
         <div aria-hidden="true">
           <div class="shape-stack" id="heroArt" aria-hidden="true">
             <div class="shape s1"></div>
-            <div class="shape s2"></div>
-            <div class="shape s3"></div>
-          </div>
+          <div class="shape s2"></div>
+          <div class="shape s3"></div>
+          <img src="image.png" alt="" style="position:relative; z-index:2; width:70%; height:70%; border-radius:18px;">
+        </div>
         </div>
       </div>
     </section>
@@ -582,8 +583,7 @@ footer{ border-top:1px solid var(--border); padding:20px 0 60px; color:var(--mut
       <div class="container">
         <h2 id="lab-title">Study Lab</h2>
         <p class="section-lead">
-          Choose your mode: a configurable Quiz game or an interactive Flashcard flow.
-          All UI, no implementation—ready for your JS.
+          Choose your mode: a configurable Quiz game or an interactive Flashcard flow!
         </p>
 
         <div class="rect-grid">
@@ -719,9 +719,21 @@ footer{ border-top:1px solid var(--border); padding:20px 0 60px; color:var(--mut
   </script>
 
   <script>
-    // === Theme toggle (localStorage + attribute) ===
+    // === Theme toggle + LOGO SWAP (localStorage + attribute) ===
     (function(){
       var STORAGE_KEY = 'lectra.theme';
+      var LIGHT_LOGO = 'light.png'
+      var DARK_LOGO  = 'dark.png'
+      var logoEl = document.getElementById('brandLogo');
+      var media = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+
+      function setLogo(theme){
+        if (!logoEl) return;
+        var isDark = theme === 'dark';
+        logoEl.src = isDark ? DARK_LOGO : LIGHT_LOGO;
+        logoEl.alt = isDark ? 'Lectra logo (dark)' : 'Lectra logo (light)';
+      }
+
       function apply(theme){
         var btn = document.getElementById('themeToggle');
         if(theme === 'dark'){
@@ -731,21 +743,38 @@ footer{ border-top:1px solid var(--border); padding:20px 0 60px; color:var(--mut
           document.documentElement.removeAttribute('data-theme');
           if(btn){ btn.textContent = '🌙 Dark'; btn.setAttribute('aria-pressed','false'); }
         }
+        setLogo(theme);
       }
+
       function initial(){
         try {
           var saved = localStorage.getItem(STORAGE_KEY);
           if(saved === 'light' || saved === 'dark') return saved;
         } catch(e){}
-        return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        return (media && media.matches) ? 'dark' : 'light';
       }
+
       var current = initial();
       apply(current);
+
+      // Toggle button
       var btn = document.getElementById('themeToggle');
       if(btn){
         btn.addEventListener('click', function(){
           current = (document.documentElement.getAttribute('data-theme') === 'dark') ? 'light' : 'dark';
           try { localStorage.setItem(STORAGE_KEY, current); } catch(e){}
+          apply(current);
+        });
+      }
+
+      // If user changes OS theme and no explicit preference saved, follow it.
+      if (media && typeof media.addEventListener === 'function'){
+        media.addEventListener('change', function(e){
+          try {
+            var saved = localStorage.getItem(STORAGE_KEY);
+            if (saved === 'light' || saved === 'dark') return; // user preference overrides
+          } catch(e){}
+          current = e.matches ? 'dark' : 'light';
           apply(current);
         });
       }
@@ -957,7 +986,7 @@ footer{ border-top:1px solid var(--border); padding:20px 0 60px; color:var(--mut
             });
 
             if (!res.ok) {
-              const err = await res.text().catch(()=>'');
+              const err = await res.text().catch(()=>{});
               throw new Error(err || 'Failed to generate speech');
             }
 
@@ -1003,7 +1032,6 @@ footer{ border-top:1px solid var(--border); padding:20px 0 60px; color:var(--mut
       const cardsLink = document.querySelector('a[href="flashcards.html"]');
       const notesSel  = document.getElementById('notesSelect');
 
-      // Helpers to extract study text (from currently shown Markdown or a PDF hint).
       function currentMarkdownText(){
         const mdCtn = document.getElementById('mdContainer');
         const md    = document.getElementById('mdContent');
@@ -1021,7 +1049,6 @@ footer{ border-top:1px solid var(--border); padding:20px 0 60px; color:var(--mut
           alert('Pick a note from the list first.');
           return false;
         }
-        // Save study text for quiz.html / flashcards.html
         const text = currentMarkdownText() || currentPdfHint();
         if (!text){
           e.preventDefault();

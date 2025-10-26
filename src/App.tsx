@@ -264,12 +264,11 @@ function App() {
     if (!notes || !sessionId) return;
     setStatus('📄 Creating PDF...');
     try {
-      const response = await fetch('http://localhost:3001/api/download-pdf', {
+      await fetch('http://localhost:3001/api/download-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes, sessionId }),
       });
-
       setStatus('✅ File downloaded.');
     } catch (error) {
       setStatus('❌ Error creating PDF');
@@ -285,19 +284,39 @@ function App() {
       <header className="App-header">
         <div className="header-top">
           <div>
-            <h1>🎓 Lectra Capture</h1>
+            {/* Single, theme-based logo — no title text */}
+            <div className="title-with-logo">
+              {theme === 'light' ? (
+                <img
+                  className="title-logo"
+                  src="/downloads/light.png"
+                  alt="Lectra logo (light)"
+                  width={120}
+                  height={28}
+                />
+              ) : (
+                <img
+                  className="title-logo"
+                  src="/downloads/dark.png"
+                  alt="Lectra logo (dark)"
+                  width={120}
+                  height={28}
+                />
+              )}
+            </div>
+
             <p className="subtitle">AI-Powered Classroom Lecture Note Generator</p>
           </div>
+
           <div className="header-user">
             <span className="user-badge">👤 {currentUser}</span>
             <button onClick={toggleTheme} className="theme-toggle" title="Toggle theme">
               {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
             </button>
-            <button onClick={handleLogout} className="btn-logout">
-              Logout
-            </button>
+            <button onClick={handleLogout} className="btn-logout">Logout</button>
           </div>
         </div>
+
         <div className="header-badges">
           <div className="badge">Powered by Google Gemini AI</div>
           <p className="instruction">
@@ -352,24 +371,12 @@ function App() {
           <div className="info-box">
             <h3>💡 How to Use:</h3>
             <ol>
-              <li>
-                <strong>Position Camera:</strong> Point at whiteboard/projector
-              </li>
-              <li>
-                <strong>Click Start:</strong> Camera turns on, frames captured every 5 seconds
-              </li>
-              <li>
-                <strong>Microphone Records:</strong> Professor's speech captured automatically
-              </li>
-              <li>
-                <strong>Click Stop:</strong> When lecture ends
-              </li>
-              <li>
-                <strong>Generate Notes:</strong> Gemini extracts text from images + combines with speech
-              </li>
-              <li>
-                <strong>Download PDF:</strong> Get your complete lecture notes
-              </li>
+              <li><strong>Position Camera:</strong> Point at whiteboard/projector</li>
+              <li><strong>Click Start:</strong> Camera turns on, frames captured every 5 seconds</li>
+              <li><strong>Microphone Records:</strong> Professor's speech captured automatically</li>
+              <li><strong>Click Stop:</strong> When lecture ends</li>
+              <li><strong>Generate Notes:</strong> Gemini extracts text from images + combines with speech</li>
+              <li><strong>Download PDF:</strong> Get your complete lecture notes</li>
             </ol>
           </div>
         </div>
@@ -393,6 +400,7 @@ function App() {
           Uses Gemini 2.0 Flash for multimodal analysis + Auth0 for secure authentication
         </p>
       </footer>
+
       <div className="auth0-floating-badge">
         <span className="badge auth0-badge">🔒 Secured with Auth0</span>
       </div>
