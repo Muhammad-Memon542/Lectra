@@ -7,6 +7,12 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': 'http://localhost:8787'
-    }
+    },
+    host: true, // allow LAN access
+    allowedHosts: [
+      'teacher.lectra.work', // ✅ add your custom domain here
+      'localhost',
+    ],
+
   }
 })
