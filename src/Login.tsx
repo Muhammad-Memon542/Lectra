@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Login.css';
 
 interface LoginProps {
@@ -11,6 +11,36 @@ function Login({ onLoginSuccess }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  useEffect(() => {
+    // Load theme preference
+    const savedTheme = localStorage.getItem('lectra_theme') as 'light' | 'dark';
+    if (savedTheme) {
+      setTheme(savedTheme);
+      applyTheme(savedTheme);
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const initialTheme = prefersDark ? 'dark' : 'light';
+      setTheme(initialTheme);
+      applyTheme(initialTheme);
+    }
+  }, []);
+
+  const applyTheme = (newTheme: 'light' | 'dark') => {
+    if (newTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+  };
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    applyTheme(newTheme);
+    localStorage.setItem('lectra_theme', newTheme);
+  };
 
   const handleLocalLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +59,10 @@ function Login({ onLoginSuccess }: LoginProps) {
 
   return (
     <div className="login-container">
+      <button onClick={toggleTheme} className="theme-toggle-login" title="Toggle theme">
+        {theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode'}
+      </button>
+      
       <div className="login-box">
         <div className="login-header">
           <h1>🎓 Lectra Capture</h1>
@@ -77,7 +111,7 @@ function Login({ onLoginSuccess }: LoginProps) {
           {error && <div className="error-message">{error}</div>}
 
           <button type="submit" disabled={loading} className="btn-login">
-            {loading ? '⏳ Logging in...' : '🔐 Login'}
+            {loading ? '⏳ Logging in...' : '🔓 Login'}
           </button>
         </form>
 
