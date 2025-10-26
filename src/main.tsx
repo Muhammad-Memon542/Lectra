@@ -1,10 +1,11 @@
 
-import React from 'react'
-import { createRoot } from 'react-dom/client'
-import CapturePage from './CapturePage'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './index.css';
 
-// Optional: override API base at runtime (uncomment to test)
-// ;(window as any).__LECTRA_API_BASE__ = '' // empty means same-origin '/api'
-
-const root = createRoot(document.getElementById('root')!)
-root.render(<CapturePage />)
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);

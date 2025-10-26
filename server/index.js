@@ -1,33 +1,311 @@
+import express from 'express';
+import multer from 'multer';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import cors from 'cors';
 
-import express from 'express'
-import multer from 'multer'
-import fs from 'fs'
-import path from 'path'
-import os from 'os'
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const app = express()
-const upload = multer({ dest: path.join(os.tmpdir(), 'lectra-frames') })
+const app = express();
 
-// Store per-session frames in tmp
-app.post('/api/ingest/frame', upload.single('frame'), (req, res) => {
-  const sessionId = req.body.sessionId || 'no-session'
-  const dir = path.join(os.tmpdir(), 'lectra-sessions', sessionId)
-  fs.mkdirSync(dir, { recursive: true })
-  const dest = path.join(dir, req.file.originalname || `frame-${Date.now()}.webm`)
-  fs.renameSync(req.file.path, dest)
-  res.json({ ok: true })
-})
+// Configure multer to save files with .jpg extension
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(7);
+    cb(null, `frame_${timestamp}_${random}.jpg`);
+  }
+});
 
-app.post('/api/ingest/finalize', express.json(), (req, res) => {
-  const { sessionId } = req.body || {}
-  if (!sessionId) return res.status(400).json({ error: 'missing sessionId' })
-  const dir = path.join(os.tmpdir(), 'lectra-sessions', sessionId)
-  const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.webm')).sort() : []
-  // For demo: we don't merge. We just confirm receipt.
-  res.json({ ok: true, receivedChunks: files.length, sessionId })
-})
+const upload = multer({ storage });
 
-const PORT = 8787
+// Initialize Gemini AI with your API key
+const genAI = new GoogleGenerativeAI('AIzaSyB5o3tBs2c2VWMtXrcBuKGAyXtLEWBuZgc');
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static('public'));
+app.use('/downloads', express.static(path.join(__dirname, '../public/downloads')));
+
+// Store recording sessions
+const sessions = new Map();
+
+app.post('/api/start-recording', (req, res) => {
+  const sessionId = Date.now().toString();
+  sessions.set(sessionId, {
+    frames: [],
+    transcripts: [],
+    startTime: new Date()
+  });
+  console.log('✅ Session started:', sessionId);
+  res.json({ sessionId });
+});
+
+app.post('/api/upload-frame', upload.single('frame'), async (req, res) => {
+  const { sessionId, timestamp, transcript } = req.body;
+  
+  if (!sessions.has(sessionId)) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  
+  const session = sessions.get(sessionId);
+  
+  if (req.file) {
+    console.log(`✅ Frame uploaded: ${req.file.filename} (${req.file.size} bytes)`);
+    session.frames.push({
+      path: req.file.path,
+      filename: req.file.filename,
+      timestamp: parseInt(timestamp)
+    });
+  }
+  
+  if (transcript) {
+    session.transcripts.push({
+      text: transcript,
+      timestamp: parseInt(timestamp)
+    });
+  }
+  
+  res.json({ success: true, filename: req.file?.filename });
+});
+
+app.post('/api/generate-notes', async (req, res) => {
+  const { sessionId } = req.body;
+  
+  if (!sessions.has(sessionId)) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  
+  const session = sessions.get(sessionId);
+  
+  console.log(`\n📝 Generating notes for session ${sessionId}`);
+  console.log(`📸 Total frames: ${session.frames.length}`);
+  console.log(`🎤 Total transcripts: ${session.transcripts.length}`);
+  
+  try {
+    console.log('🤖 Initializing Gemini...');
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    
+    const parts = [];
+    
+    parts.push({
+      text: `You are an expert lecture note-taker. Analyze the following classroom lecture materials including screenshots and transcripts captured every 5 seconds during the lecture.
+
+Your task is to:
+1. Identify the main topics and subtopics covered
+2. Extract key concepts, definitions, and formulas from the images
+3. Organize the information chronologically and thematically
+4. Create comprehensive, well-structured lecture notes in markdown format
+5. Include any diagrams, equations, or important visual information described in text
+
+Format your response as a complete markdown document with:
+- A clear title
+- Table of contents
+- Main sections with headers (##)
+- Subsections (###)
+- Bullet points for key concepts
+- Code blocks for any code or formulas
+- Clear explanations
+
+Here are the lecture materials:`
+    });
+    
+    if (session.transcripts.length > 0) {
+      const transcriptText = session.transcripts
+        .map((t) => `[${Math.floor(t.timestamp / 1000)}s] ${t.text}`)
+        .join('\n\n');
+      console.log('📤 Adding transcripts to Gemini...');
+      parts.push({ text: `\n\nTRANSCRIPTS:\n${transcriptText}` });
+    }
+    
+    // Sample frames to avoid token limits
+    const sampleFrames = session.frames
+      .filter((_, i) => i % Math.ceil(session.frames.length / 10) === 0)
+      .slice(0, 10);
+    
+    console.log(`📸 Sending ${sampleFrames.length} frames to Gemini (sampled from ${session.frames.length} total)...`);
+    
+    let framesAdded = 0;
+    for (const frame of sampleFrames) {
+      if (fs.existsSync(frame.path)) {
+        try {
+          const imageData = fs.readFileSync(frame.path);
+          const base64Image = imageData.toString('base64');
+          parts.push({
+            inlineData: {
+              mimeType: 'image/jpeg',
+              data: base64Image
+            }
+          });
+          parts.push({ text: `[Image at ${Math.floor(frame.timestamp / 1000)}s - ${frame.filename}]` });
+          framesAdded++;
+          console.log(`  ✅ Added: ${frame.filename}`);
+        } catch (error) {
+          console.error(`  ❌ Error reading frame ${frame.path}:`, error.message);
+        }
+      } else {
+        console.error(`  ⚠️ File not found: ${frame.path}`);
+      }
+    }
+    
+    console.log(`\n🚀 Sending ${framesAdded} frames + transcripts to Gemini API...`);
+    const result = await model.generateContent(parts);
+    const response = await result.response;
+    const notes = response.text();
+    
+    console.log('✅ Notes generated successfully!');
+    console.log(`📄 Notes length: ${notes.length} characters`);
+    res.json({ notes, sessionId });
+    
+  } catch (error) {
+    console.error('\n❌ Error generating notes:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate notes', 
+      details: error.message,
+      type: error.name
+    });
+  }
+});
+
+app.post('/api/download-pdf', async (req, res) => {
+  const { notes, sessionId } = req.body;
+  
+  try {
+    const filename = `notes_${sessionId}_${Date.now()}.html`;
+    const downloadsDir = path.join(__dirname, '../public/downloads');
+    
+    if (!fs.existsSync(downloadsDir)) {
+      fs.mkdirSync(downloadsDir, { recursive: true });
+    }
+    
+    const filepath = path.join(downloadsDir, filename);
+    
+    const fullHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Lecture Notes</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.8;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 60px 40px;
+      color: #333;
+      background: #fff;
+    }
+    h1 {
+      color: #2c3e50;
+      border-bottom: 4px solid #3498db;
+      padding-bottom: 15px;
+      margin-bottom: 30px;
+      font-size: 2.5em;
+    }
+    h2 {
+      color: #34495e;
+      margin-top: 40px;
+      border-bottom: 2px solid #95a5a6;
+      padding-bottom: 10px;
+      font-size: 1.8em;
+    }
+    h3 {
+      color: #7f8c8d;
+      margin-top: 25px;
+      font-size: 1.4em;
+    }
+    code {
+      background-color: #f4f4f4;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+    pre {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 6px;
+      overflow-x: auto;
+      border-left: 4px solid #3498db;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+    }
+    ul, ol {
+      margin-left: 25px;
+      margin-bottom: 20px;
+    }
+    li {
+      margin-bottom: 10px;
+      line-height: 1.6;
+    }
+    p {
+      margin-bottom: 15px;
+      text-align: justify;
+    }
+    strong {
+      color: #2c3e50;
+    }
+    @media print {
+      body {
+        padding: 20px;
+      }
+      h1 {
+        page-break-before: avoid;
+      }
+      h2, h3 {
+        page-break-after: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="lecture-notes">
+    ${notes}
+  </div>
+</body>
+</html>
+    `;
+    
+    fs.writeFileSync(filepath, fullHtml);
+    console.log('📄 PDF file created:', filename);
+    
+    res.json({ 
+      success: true, 
+      downloadUrl: `/downloads/${filename}`,
+      message: 'Notes generated successfully. Open the file and print to PDF (Ctrl+P / Cmd+P).'
+    });
+    
+  } catch (error) {
+    console.error('Error creating PDF:', error);
+    res.status(500).json({ error: 'Failed to create PDF', details: error.message });
+  }
+});
+
+app.post('/api/end-recording', (req, res) => {
+  const { sessionId } = req.body;
+  
+  if (!sessions.has(sessionId)) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  
+  const session = sessions.get(sessionId);
+  console.log(`\n📹 Recording ended. Frames: ${session.frames.length}, Transcripts: ${session.transcripts.length}`);
+  
+  res.json({ success: true });
+});
+
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`[lectra-api] listening on http://localhost:${PORT}`)
-})
+  console.log(`\n🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📝 API available at http://localhost:${PORT}/api`);
+  console.log('⏳ Waiting for requests...\n');
+});
