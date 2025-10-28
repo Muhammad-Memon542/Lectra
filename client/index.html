@@ -979,7 +979,7 @@ footer{ border-top:1px solid var(--border); padding:20px 0 60px; color:var(--mut
           try {
             setState('loading');
 
-            const res = await fetch('http://localhost:3001/api/text-to-speech', {
+            const res = await fetch('https://api.lectra.work/api/text-to-speech', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ text })
@@ -991,7 +991,7 @@ footer{ border-top:1px solid var(--border); padding:20px 0 60px; color:var(--mut
             }
 
             const { audioUrl } = await res.json();
-            const fullUrl = 'http://localhost:3001' + audioUrl;
+            const fullUrl = 'https://api.lectra.work' + audioUrl;
 
             ttsAudio.src = fullUrl;
             ttsAudioContainer.classList.add('visible');

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "api": "node server/index.js",
     "client": "node client/server.mjs",
-    "start:all": "npm-run-all --parallel api dev client"
+    "start:all": "npm-run-all --parallel api dev client",
+    "start:server": "npm-run-all --parallel api preview client"
   },
   "dependencies": {
     "@google/genai": "^1.27.0",

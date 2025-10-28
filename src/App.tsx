@@ -117,7 +117,7 @@ function App() {
         videoRef.current.play().catch((e) => console.error('Play error:', e));
       }
 
-      const response = await fetch('http://localhost:3001/api/start-recording', {
+      const response = await fetch('https://api.lectra.work/api/start-recording', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -189,7 +189,7 @@ function App() {
           formData.append('transcript', currentTranscriptRef.current);
 
           try {
-            await fetch('http://localhost:3001/api/upload-frame', {
+            await fetch('https://api.lectra.work/api/upload-frame', {
               method: 'POST',
               body: formData,
             });
@@ -230,7 +230,7 @@ function App() {
     }
 
     if (sessionId) {
-      await fetch('http://localhost:3001/api/end-recording', {
+      await fetch('https://api.lectra.work/api/end-recording', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId }),
@@ -248,7 +248,7 @@ function App() {
     setStatus('🤖 Analyzing with Gemini AI... Extracting text from images & processing speech...');
 
     try {
-      const response = await fetch('http://localhost:3001/api/generate-notes', {
+      const response = await fetch('https://api.lectra.work/api/generate-notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId }),
@@ -279,7 +279,7 @@ function App() {
     setStatus('📄 Creating PDF...');
 
     try {
-      await fetch('http://localhost:3001/api/download-pdf', {
+      await fetch('https://api.lectra.work/api/download-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes, sessionId }),
